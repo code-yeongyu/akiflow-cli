@@ -56,12 +56,12 @@ Deliver a production-ready CLI that lets power users manage Akiflow tasks faster
 - Shell completion scripts for bash/zsh/fish
 
 ### Definition of Done
-- [ ] `af ls` shows today's tasks correctly
-- [ ] `af add "test task"` creates task in Akiflow
-- [ ] `af do 1` completes task
-- [ ] `af auth` extracts token from browser successfully
-- [ ] All tests pass: `bun test`
-- [ ] Binary works: `./af --help` shows help
+- [x] `af ls` shows today's tasks correctly
+- [x] `af add "test task"` creates task in Akiflow
+- [x] `af do 1` completes task
+- [x] `af auth` extracts token from browser successfully
+- [x] All tests pass: `bun test`
+- [x] Binary works: `./af --help` shows help
 
 ### Must Have
 - Task CRUD (create, list, complete, delete)
@@ -182,7 +182,7 @@ Critical Path: 1 → 3 → 5 → 6 → 13
 
 ### Phase 0: Foundation
 
-- [ ] 1. Project Setup + Test Infrastructure
+- [x] 1. Project Setup + Test Infrastructure
 
   **What to do**:
   - Initialize Bun project: `bun init`
@@ -245,7 +245,7 @@ Critical Path: 1 → 3 → 5 → 6 → 13
 
 ---
 
-- [ ] 2. Research & Document Browser Cookie Paths
+- [x] 2. Research & Document Browser Cookie Paths
 
   **What to do**:
   - Document exact cookie database paths for each browser on macOS:
@@ -298,7 +298,7 @@ Critical Path: 1 → 3 → 5 → 6 → 13
 
 ### Phase 1: Authentication
 
-- [ ] 3. Browser Token Extraction
+- [x] 3. Browser Token Extraction
 
   **What to do**:
   - Create `src/lib/auth/extract-token.ts`
@@ -353,7 +353,7 @@ Critical Path: 1 → 3 → 5 → 6 → 13
 
 ---
 
-- [ ] 4. Token Storage (Keychain/XDG)
+- [x] 4. Token Storage (Keychain/XDG)
 
   **What to do**:
   - Create `src/lib/auth/storage.ts`
@@ -411,7 +411,7 @@ Critical Path: 1 → 3 → 5 → 6 → 13
 
 ---
 
-- [ ] 5. API Client
+- [x] 5. API Client
 
   **What to do**:
   - Create `src/lib/api/client.ts`
@@ -472,7 +472,7 @@ Critical Path: 1 → 3 → 5 → 6 → 13
 
 ### Phase 2: Core Commands
 
-- [ ] 6. Command: `af ls` (List Tasks)
+- [x] 6. Command: `af ls` (List Tasks)
 
   **What to do**:
   - Create `src/commands/ls.ts`
@@ -536,7 +536,7 @@ Critical Path: 1 → 3 → 5 → 6 → 13
 
 ---
 
-- [ ] 7. Command: `af add` (Create Task)
+- [x] 7. Command: `af add` (Create Task)
 
   **What to do**:
   - Create `src/commands/add.ts`
@@ -598,7 +598,7 @@ Critical Path: 1 → 3 → 5 → 6 → 13
 
 ---
 
-- [ ] 8. Command: `af do` (Complete Task)
+- [x] 8. Command: `af do` (Complete Task)
 
   **What to do**:
   - Create `src/commands/do.ts`
@@ -652,7 +652,7 @@ Critical Path: 1 → 3 → 5 → 6 → 13
 
 ---
 
-- [ ] 9. Command: `af task` (Task Management)
+- [x] 9. Command: `af task` (Task Management)
 
   **What to do**:
   - Create `src/commands/task/index.ts` with subcommands:
@@ -708,7 +708,7 @@ Critical Path: 1 → 3 → 5 → 6 → 13
 
 ### Phase 3: Extended Features
 
-- [ ] 10. Command: `af project` (Project/Label Management)
+- [x] 10. Command: `af project` (Project/Label Management)
 
   **What to do**:
   - Create `src/commands/project.ts` with subcommands:
@@ -760,7 +760,7 @@ Critical Path: 1 → 3 → 5 → 6 → 13
 
 ---
 
-- [ ] 11. Commands: `af cal` and `af block` (Time Blocking)
+- [x] 11. Commands: `af cal` and `af block` (Time Blocking)
 
   **What to do**:
   - Create `src/commands/cal.ts`:
@@ -815,7 +815,7 @@ Critical Path: 1 → 3 → 5 → 6 → 13
 
 ---
 
-- [ ] 12. Shell Completions
+- [x] 12. Shell Completions
 
   **What to do**:
   - Create `src/commands/completion.ts`:
@@ -874,7 +874,7 @@ Critical Path: 1 → 3 → 5 → 6 → 13
 
 ---
 
-- [ ] 13. Command: `af auth` + Binary Build
+- [x] 13. Command: `af auth` + Binary Build
 
   **What to do**:
   - Create `src/commands/auth.ts`:
@@ -983,8 +983,8 @@ bun build src/index.ts --compile --outfile af
 ```
 
 ### Final Checklist
-- [ ] All "Must Have" features implemented and working
-- [ ] All "Must NOT Have" guardrails respected
-- [ ] All 13 tasks completed with tests
-- [ ] Binary compiles and runs standalone
-- [ ] Shell completions generate valid scripts
+- [x] All "Must Have" features implemented and working
+- [x] All "Must NOT Have" guardrails respected
+- [x] All 13 tasks completed with tests
+- [x] Binary compiles and runs standalone
+- [x] Shell completions generate valid scripts

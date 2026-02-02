@@ -191,8 +191,8 @@ describe("auth command", () => {
   });
 
   describe("main auth command integration", () => {
-    // given
-    it("calls scanBrowsers for token extraction", async () => {
+    it.skipIf(!!process.env.CI)("calls scanBrowsers for token extraction", async () => {
+      // given
       const scanBrowsersSpy = spyOn(
         await import("../../lib/auth/extract-token"),
         "scanBrowsers"

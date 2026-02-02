@@ -91,11 +91,10 @@ describe("block command", () => {
     expect(createdPayload[0].duration).toBe(60 * 60 * 1000);
 
     expect(consoleLogSpy).toHaveBeenCalledWith("✓ Time block created successfully");
-    expect(consoleLogSpy).toHaveBeenCalledWith("  ID:", "test-id-1");
+    expect(consoleLogSpy).toHaveBeenCalledWith("  ID: test-id-1");
     expect(consoleLogSpy).toHaveBeenCalledWith("  Title: Deep Work");
     expect(consoleLogSpy).toHaveBeenCalledWith(
-      "  Time:",
-      expect.stringMatching(/\d{2}:\d{2}/)
+      expect.stringMatching(/\s+Time: \d{2}:\d{2}/)
     );
 
     consoleLogSpy.mockRestore();

@@ -65,11 +65,15 @@ describe("parseDate", () => {
 
   it("parses 'next friday' and returns correct ISO date", () => {
     // given
+    // chrono-node "next friday" means next week's Friday, not this week's
     const today = new Date();
     const dayOfWeek = today.getDay();
-    const daysUntilFriday = (5 - dayOfWeek + 7) % 7 || 7;
+    const daysUntilThisFriday = (5 - dayOfWeek + 7) % 7;
+    // "next friday" = this week's Friday + 7 days, or 7 days if today is Friday
+    const daysUntilNextFriday =
+      daysUntilThisFriday === 0 ? 7 : daysUntilThisFriday + 7;
     const nextFriday = new Date(today);
-    nextFriday.setDate(today.getDate() + daysUntilFriday);
+    nextFriday.setDate(today.getDate() + daysUntilNextFriday);
     const expectedYear = nextFriday.getFullYear();
     const expectedMonth = String(nextFriday.getMonth() + 1).padStart(2, "0");
     const expectedDay = String(nextFriday.getDate()).padStart(2, "0");

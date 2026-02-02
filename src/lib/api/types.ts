@@ -173,4 +173,12 @@ export interface TimeSlot {
 export interface AkiflowCredentials {
   token: string;
   clientId: string;
+  refreshToken?: string;
+}
+
+export interface TokenRefreshResponse {
+  token_type: string;
+  expires_in: number;
+  access_token: string;
+  refresh_token: string;
 }

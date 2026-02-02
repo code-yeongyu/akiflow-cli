@@ -14,10 +14,14 @@ export interface ExtractedToken {
   token: string;
   source: string;
   expiresAt?: Date;
+  refreshToken?: string;
 }
 
 const AKIFLOW_INDEXEDDB_FOLDER = "https_web.akiflow.com_0.indexeddb.leveldb";
-const JWT_RS256_PATTERN = /eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g;
+// Match any JWT (both HS256 and RS256)
+const JWT_PATTERN = /eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g;
+const JWT_MATCHER = /eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/;
+const REFRESH_TOKEN_PATTERN = /def50200[a-f0-9]{200,}/g;
 
 /**
  * Chrome encryption constants
@@ -216,10 +220,16 @@ export async function extractFromChrome(
     }
 
     if (tokenValue) {
+      const jwt = isJwtToken(tokenValue) ? tokenValue : extractJwtFromString(tokenValue);
+      if (!jwt) {
+        continue;
+      }
+
       tokens.push({
         browser: browserPath.id,
-        token: tokenValue,
+        token: jwt,
         source: browserPath.cookiePath,
+        expiresAt: parseJWTExpiration(jwt),
       });
     }
   }
@@ -312,10 +322,18 @@ export async function extractFromSafari(
         cookie.domain.includes(AKIFLOW_DOMAIN) &&
         cookie.name.startsWith(COOKIE_NAME_PATTERN)
       ) {
+        const jwt = isJwtToken(cookie.value)
+          ? cookie.value
+          : extractJwtFromString(cookie.value);
+        if (!jwt) {
+          continue;
+        }
+
         tokens.push({
           browser: "safari",
-          token: cookie.value,
+          token: jwt,
           source: browserPath.cookiePath,
+          expiresAt: parseJWTExpiration(jwt),
         });
       }
     }
@@ -386,34 +404,40 @@ function parseSafariCookie(
 }
 
 export async function scanBrowsers(): Promise<ExtractedToken[]> {
-  const allTokens: ExtractedToken[] = [];
   const browserPaths = getAllBrowserPaths();
+  const now = new Date();
+
+  const isValidToken = (token: ExtractedToken): boolean => {
+    if (!isJwtToken(token.token)) return false;
+    if (token.expiresAt && token.expiresAt < now) return false;
+    return true;
+  };
 
   for (const browserPath of browserPaths) {
-    // Try IndexedDB first (contains the actual JWT)
     const indexedDBTokens = await extractFromIndexedDB(browserPath);
-    if (indexedDBTokens.length > 0) {
-      allTokens.push(...indexedDBTokens);
-      continue;
+    const validTokens = indexedDBTokens.filter(isValidToken);
+    if (validTokens.length > 0) {
+      return validTokens;
     }
+  }
 
-    // Fall back to cookies
-    if (!existsSync(browserPath.cookiePath)) {
-      continue;
-    }
+  for (const browserPath of browserPaths) {
+    if (!existsSync(browserPath.cookiePath)) continue;
 
     let tokens: ExtractedToken[] = [];
-
     if (browserPath.encryptionMethod === "pbkdf2") {
       tokens = await extractFromChrome(browserPath);
     } else if (browserPath.encryptionMethod === "binary") {
       tokens = await extractFromSafari(browserPath);
     }
 
-    allTokens.push(...tokens);
+    const validTokens = tokens.filter(isValidToken);
+    if (validTokens.length > 0) {
+      return validTokens;
+    }
   }
 
-  return allTokens;
+  return [];
 }
 
 /**
@@ -451,12 +475,18 @@ export async function extractFromBrowser(
   return [];
 }
 
+function decodeBase64Url(input: string): string {
+  const normalized = input.replace(/-/g, "+").replace(/_/g, "/");
+  const padding = normalized.length % 4 === 0 ? "" : "=".repeat(4 - (normalized.length % 4));
+  return atob(`${normalized}${padding}`);
+}
+
 function parseJWTExpiration(token: string): Date | undefined {
   const parts = token.split(".");
   if (parts.length !== 3 || !parts[1]) return undefined;
 
   try {
-    const payload = JSON.parse(atob(parts[1])) as { exp?: number };
+    const payload = JSON.parse(decodeBase64Url(parts[1])) as { exp?: number };
     if (payload.exp) {
       return new Date(payload.exp * 1000);
     }
@@ -464,6 +494,15 @@ function parseJWTExpiration(token: string): Date | undefined {
     return undefined;
   }
   return undefined;
+}
+
+function isJwtToken(token: string): boolean {
+  return JWT_MATCHER.test(token);
+}
+
+function extractJwtFromString(value: string): string | null {
+  const match = value.match(JWT_MATCHER);
+  return match ? match[0] : null;
 }
 
 export async function extractFromIndexedDB(
@@ -483,6 +522,7 @@ export async function extractFromIndexedDB(
 
   const files = readdirSync(akiflowDBPath);
   const uniqueTokens = new Map<string, ExtractedToken>();
+  const allRefreshTokens = new Set<string>();
 
   for (const file of files) {
     if (!file.endsWith(".log") && !file.endsWith(".ldb")) {
@@ -500,10 +540,19 @@ export async function extractFromIndexedDB(
       const content = readFileSync(fullPath);
       const str = content.toString("utf-8");
 
-      const matches = str.matchAll(JWT_RS256_PATTERN);
+      const refreshMatches = str.match(REFRESH_TOKEN_PATTERN);
+      if (refreshMatches) {
+        for (const rt of refreshMatches) {
+          allRefreshTokens.add(rt);
+        }
+      }
 
-      for (const match of matches) {
-        const jwt = match[0];
+      const matches = str.match(JWT_PATTERN);
+      if (!matches) {
+        continue;
+      }
+
+      for (const jwt of matches) {
         const expiresAt = parseJWTExpiration(jwt);
         const isExpired = expiresAt ? expiresAt < new Date() : false;
 
@@ -521,11 +570,19 @@ export async function extractFromIndexedDB(
     }
   }
 
+  const longestRefreshToken = Array.from(allRefreshTokens).sort(
+    (a, b) => b.length - a.length
+  )[0];
+
   const sortedTokens = Array.from(uniqueTokens.values()).sort((a, b) => {
     const aTime = a.expiresAt?.getTime() ?? 0;
     const bTime = b.expiresAt?.getTime() ?? 0;
     return bTime - aTime;
   });
+
+  if (longestRefreshToken && sortedTokens.length > 0 && sortedTokens[0]) {
+    sortedTokens[0].refreshToken = longestRefreshToken;
+  }
 
   return sortedTokens;
 }

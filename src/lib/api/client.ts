@@ -1,4 +1,4 @@
-import { loadCredentials } from "../auth/storage";
+import { loadCredentials, saveCredentials } from "../auth/storage";
 import type {
   ApiResponse,
   AkiflowCredentials,
@@ -7,11 +7,14 @@ import type {
   Tag,
   Task,
   TimeSlot,
+  TokenRefreshResponse,
   UpdateTaskPayload,
 } from "./types";
 import { AuthError, NetworkError } from "./types";
 
 const BASE_URL = "https://api.akiflow.com";
+const REFRESH_URL = "https://web.akiflow.com/oauth/refreshToken";
+const WEB_CLIENT_ID = "10";
 const DEFAULT_VERSION = "3";
 const DEFAULT_PLATFORM = "web";
 const DEFAULT_LIMIT = 2500;
@@ -26,6 +29,7 @@ export class AkiflowClient {
   private credentials: AkiflowCredentials | null = null;
   private version: string;
   private platform: string;
+  private isRefreshing = false;
 
   constructor(options: AkiflowClientOptions = {}) {
     this.credentials = options.credentials ?? null;
@@ -46,9 +50,69 @@ export class AkiflowClient {
     this.credentials = {
       token: stored.token,
       clientId: stored.clientId,
+      refreshToken: stored.refreshToken,
     };
 
     return this.credentials;
+  }
+
+  /**
+   * Refresh access token using refresh token
+   */
+  private async refreshToken(): Promise<boolean> {
+    if (this.isRefreshing) {
+      return false;
+    }
+
+    const creds = await this.getCredentials();
+    if (!creds.refreshToken) {
+      return false;
+    }
+
+    this.isRefreshing = true;
+    try {
+      const response = await fetch(REFRESH_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          client_id: WEB_CLIENT_ID,
+          refresh_token: creds.refreshToken,
+        }),
+      });
+
+      if (!response.ok) {
+        return false;
+      }
+
+      const data = (await response.json()) as TokenRefreshResponse;
+      if (!data.access_token || !data.refresh_token) {
+        return false;
+      }
+
+      const expiryTimestamp = Date.now() + data.expires_in * 1000;
+
+      await saveCredentials(
+        data.access_token,
+        creds.clientId,
+        expiryTimestamp,
+        data.refresh_token
+      );
+
+      this.credentials = {
+        token: data.access_token,
+        clientId: creds.clientId,
+        refreshToken: data.refresh_token,
+      };
+
+      return true;
+    } catch {
+      return false;
+    } finally {
+      this.isRefreshing = false;
+    }
   }
 
   private async buildHeaders(
@@ -74,7 +138,8 @@ export class AkiflowClient {
   private async request<TData>(
     method: "GET" | "PATCH",
     path: string,
-    body?: unknown
+    body?: unknown,
+    retried = false
   ): Promise<ApiResponse<TData>> {
     const url = `${BASE_URL}${path}`;
     const headers = await this.buildHeaders(method === "PATCH");
@@ -93,8 +158,20 @@ export class AkiflowClient {
       );
     }
 
+    if (response.status === 401 && !retried) {
+      const refreshed = await this.refreshToken();
+      if (refreshed) {
+        return this.request<TData>(method, path, body, true);
+      }
+      throw new AuthError(
+        "Authentication failed. Token expired and refresh failed. Please run 'af auth' to re-authenticate."
+      );
+    }
+
     if (response.status === 401) {
-      throw new AuthError("Authentication failed. Token may be expired.");
+      throw new AuthError(
+        "Authentication failed. Please run 'af auth' to re-authenticate."
+      );
     }
 
     if (!response.ok) {

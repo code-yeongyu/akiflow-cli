@@ -1,0 +1,24 @@
+{
+  "name": "akiflow-cli",
+  "version": "0.1.0",
+  "description": "Akiflow CLI - Task management from the command line",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "^1.3.8"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "chrono-node": "^2.9.0",
+    "citty": "^0.2.0"
+  },
+  "scripts": {
+    "dev": "bun run --hot src/index.ts",
+    "start": "bun run src/index.ts",
+    "build": "bun build src/index.ts --compile --outfile af",
+    "test": "bun test"
+  }
+}

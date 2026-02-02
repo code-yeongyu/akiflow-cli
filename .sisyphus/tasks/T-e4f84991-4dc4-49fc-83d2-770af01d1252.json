@@ -1,0 +1,8 @@
+{
+  "id": "T-e4f84991-4dc4-49fc-83d2-770af01d1252",
+  "title": "Phase 3: Generate AGENTS.md",
+  "description": "Generate root + subdirectory AGENTS.md files",
+  "status": "completed",
+  "dependsOn": [],
+  "threadID": "ses_3e3f7963affel35cxDLrfCFH1V"
+}

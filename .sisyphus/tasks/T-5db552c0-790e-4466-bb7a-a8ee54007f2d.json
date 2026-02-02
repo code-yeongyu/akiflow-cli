@@ -1,0 +1,8 @@
+{
+  "id": "T-5db552c0-790e-4466-bb7a-a8ee54007f2d",
+  "title": "npm + GitHub Releases 배포 CI 구성",
+  "description": "1. package.json 수정 (private 제거, bin 추가)\n2. release.yml 워크플로우 생성\n3. 커밋 및 푸시",
+  "status": "completed",
+  "dependsOn": [],
+  "threadID": "ses_3e3e869e2ffecOOCPSPOLH9yEs"
+}

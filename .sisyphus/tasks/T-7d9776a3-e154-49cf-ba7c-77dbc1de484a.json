@@ -1,0 +1,8 @@
+{
+  "id": "T-7d9776a3-e154-49cf-ba7c-77dbc1de484a",
+  "title": "akiflow-cli 퍼블릭 레포 및 플러그인/스킬 구성",
+  "description": "1. GitHub 퍼블릭 레포 생성 (code-yeongyu/akiflow-cli)\n2. agent-messenger 스타일 플러그인/스킬 구성\n3. 커밋 및 푸시",
+  "status": "completed",
+  "dependsOn": [],
+  "threadID": "ses_3e3e869e2ffecOOCPSPOLH9yEs"
+}

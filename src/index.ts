@@ -1,3 +1,4 @@
+#!/usr/bin/env bun
 import { defineCommand, runMain } from "citty";
 import { lsCommand } from "./commands/ls";
 import { add } from "./commands/add";

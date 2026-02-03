@@ -21,22 +21,64 @@ Use this when you want fast task management without leaving your terminal.
 
 ## Setup
 
+바이너리 설치됨: `/opt/homebrew/bin/af` (또는 `which af`)
+
+최초 인증:
 ```bash
-# Clone and build
-git clone https://github.com/code-yeongyu/akiflow-cli.git
-cd akiflow-cli
-bun install
-bun run build
-
-# Move to PATH
-mv af /usr/local/bin/
-
-# Extract credentials from browser (run once)
-# Requires Akiflow to be logged in via browser (Chrome, Firefox, Safari, Arc, Brave, Edge)
-af auth
+af auth        # Chrome에서 토큰 자동 추출
+af auth status # 인증 상태 확인
 ```
 
-Credentials are stored in Keychain (macOS) or `~/.config/af/credentials.json` (Linux).
+Credentials 저장 위치: `~/.config/af/credentials.json`
+
+---
+
+## 토큰 만료 대처 (중요!)
+
+### 자동 갱신
+- CLI가 refresh token으로 자동 갱신 시도
+- 대부분의 경우 사용자 개입 없이 작동
+
+### 수동 재인증이 필요한 경우
+
+**증상:**
+- `AuthError: No credentials found` 에러
+- `401 Unauthorized` 응답  
+- API 호출 실패
+
+**대처 순서:**
+
+1. **먼저 Chrome에서 Akiflow 로그인 확인**
+   ```bash
+   # Chrome에서 https://web.akiflow.com 접속하여 로그인 상태 확인
+   # 로그아웃 되어있으면 로그인
+   ```
+
+2. **토큰 재추출**
+   ```bash
+   af auth
+   # "Found 1 token(s) from: chrome" 메시지 확인
+   ```
+
+3. **인증 상태 확인**
+   ```bash
+   af auth status
+   # "Authenticated" 출력되면 성공
+   ```
+
+4. **여전히 실패 시**
+   - Chrome 완전히 종료 후 재시작
+   - Akiflow 웹에서 로그아웃 → 재로그인
+   - `af auth` 다시 실행
+
+### 에러별 대처
+
+| 에러 | 원인 | 해결 |
+|------|------|------|
+| `No credentials found` | 토큰 없음 | `af auth` 실행 |
+| `Token expired` | 만료됨 | Chrome에서 Akiflow 접속 후 `af auth` |
+| `401 Unauthorized` | 토큰 무효 | 위와 동일 |
+| `Network error` | 네트워크 | 인터넷 연결 확인 |
 
 ---
 

@@ -25,7 +25,7 @@ Bun-native CLI for managing Akiflow tasks directly from your terminal. Built wit
 - **Natural Language Dates**: "tomorrow", "next friday", "in 2 hours"
 - **Short ID System**: Use `af do 1` instead of full UUIDs
 - **Shell Completions**: Bash, Zsh, Fish support
-- **Secure Auth**: Browser token extraction, Keychain (macOS) / XDG config (Linux)
+- **Secure Auth**: Browser token extraction with automatic token refresh
 
 ## Installation
 
@@ -216,8 +216,7 @@ No OAuth flow required - just log into Akiflow in your browser once.
 
 ### Credentials Storage
 
-- **macOS**: Keychain via `Bun.secrets`
-- **Linux/Other**: `~/.config/af/credentials.json`
+Credentials are stored in `~/.config/af/credentials.json` on all platforms.
 
 ## Development
 

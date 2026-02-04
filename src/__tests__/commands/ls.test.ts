@@ -1,7 +1,7 @@
 /// <reference types="bun" />
 import { describe, it, expect, spyOn } from "bun:test";
 import { AkiflowClient } from "../../lib/api/client";
-import { lsCommand } from "../../commands/ls";
+import { lsCommand, getTaskDisplayTitle } from "../../commands/ls";
 import type { Task } from "../../lib/api/types";
 import * as fs from "node:fs/promises";
 
@@ -558,5 +558,300 @@ describe("ls command", () => {
     consoleErrorSpy.mockRestore();
     processExitSpy.mockRestore();
     getTasksMock.mockRestore();
+  });
+});
+
+describe("getTaskDisplayTitle", () => {
+  const createTask = (overrides: Partial<Task>): Task => ({
+    id: "test-task",
+    user_id: 1,
+    recurring_id: null,
+    title: null,
+    description: null,
+    date: null,
+    datetime: null,
+    datetime_tz: null,
+    original_date: null,
+    original_datetime: null,
+    duration: null,
+    recurrence: null,
+    recurrence_version: null,
+    status: 0,
+    priority: null,
+    dailyGoal: null,
+    done: false,
+    done_at: null,
+    read_at: null,
+    listId: null,
+    section_id: null,
+    tags_ids: [],
+    sorting: 0,
+    sorting_label: null,
+    origin: null,
+    due_date: null,
+    connector_id: null,
+    origin_id: null,
+    origin_account_id: null,
+    akiflow_account_id: null,
+    doc: {},
+    calendar_id: null,
+    time_slot_id: null,
+    links: [],
+    content: {},
+    trashed_at: null,
+    plan_unit: null,
+    plan_period: null,
+    global_list_id_updated_at: null,
+    global_tags_ids_updated_at: null,
+    global_created_at: "2024-01-01T00:00:00Z",
+    global_updated_at: "2024-01-01T00:00:00Z",
+    data: {},
+    deleted_at: null,
+    ...overrides,
+  });
+
+  it("returns title when title is available", () => {
+    // given
+    const task = createTask({ title: "My Task Title" });
+
+    // when
+    const result = getTaskDisplayTitle(task);
+
+    // then
+    expect(result).toBe("My Task Title");
+  });
+
+  it("returns doc.original_message with Slack prefix when title is null", () => {
+    // given
+    const task = createTask({
+      title: null,
+      connector_id: "slack",
+      doc: { original_message: "<@U065YV4E7LK>\n제안서 크리에이터 ID 검증하는 API가..." },
+    });
+
+    // when
+    const result = getTaskDisplayTitle(task);
+
+    // then
+    expect(result).toContain("[Slack]");
+    expect(result).toContain("제안서 크리에이터 ID 검증하는 API가");
+  });
+
+  it("returns doc.original_message without prefix when connector_id is null", () => {
+    // given
+    const task = createTask({
+      title: null,
+      connector_id: null,
+      doc: { original_message: "Some message content" },
+    });
+
+    // when
+    const result = getTaskDisplayTitle(task);
+
+    // then
+    expect(result).toBe("Some message content");
+    expect(result).not.toContain("[");
+  });
+
+  it("returns description when title and doc.original_message are null", () => {
+    // given
+    const task = createTask({
+      title: null,
+      doc: {},
+      description: "Task description here",
+    });
+
+    // when
+    const result = getTaskDisplayTitle(task);
+
+    // then
+    expect(result).toBe("Task description here");
+  });
+
+  it("returns (No title) when all fallbacks are exhausted", () => {
+    // given
+    const task = createTask({
+      title: null,
+      doc: {},
+      description: null,
+    });
+
+    // when
+    const result = getTaskDisplayTitle(task);
+
+    // then
+    expect(result).toBe("(No title)");
+  });
+
+  it("truncates long doc.original_message to maxLength", () => {
+    // given
+    const longMessage = "A".repeat(100);
+    const task = createTask({
+      title: null,
+      connector_id: "slack",
+      doc: { original_message: longMessage },
+    });
+
+    // when
+    const result = getTaskDisplayTitle(task, 50);
+
+    // then
+    expect(result.length).toBe(50);
+    expect(result).toContain("...");
+  });
+
+  it("replaces newlines with spaces in doc.original_message", () => {
+    // given
+    const task = createTask({
+      title: null,
+      doc: { original_message: "Line 1\nLine 2\nLine 3" },
+    });
+
+    // when
+    const result = getTaskDisplayTitle(task);
+
+    // then
+    expect(result).toBe("Line 1 Line 2 Line 3");
+    expect(result).not.toContain("\n");
+  });
+
+  it("handles GitHub connector prefix", () => {
+    // given
+    const task = createTask({
+      title: null,
+      connector_id: "github",
+      doc: { original_message: "Issue #123: Bug fix" },
+    });
+
+    // when
+    const result = getTaskDisplayTitle(task);
+
+    // then
+    expect(result).toBe("[GitHub] Issue #123: Bug fix");
+  });
+
+  it("handles unknown connector with generic prefix", () => {
+    // given
+    const task = createTask({
+      title: null,
+      connector_id: "unknown-connector",
+      doc: { original_message: "Some message" },
+    });
+
+    // when
+    const result = getTaskDisplayTitle(task);
+
+    // then
+    expect(result).toBe("[unknown-connector] Some message");
+  });
+
+  it("skips empty title and uses fallback", () => {
+    // given
+    const task = createTask({
+      title: "   ",
+      doc: { original_message: "Fallback message" },
+    });
+
+    // when
+    const result = getTaskDisplayTitle(task);
+
+    // then
+    expect(result).toBe("Fallback message");
+  });
+
+  it("skips empty doc.original_message and uses description", () => {
+    // given
+    const task = createTask({
+      title: null,
+      doc: { original_message: "   " },
+      description: "Description fallback",
+    });
+
+    // when
+    const result = getTaskDisplayTitle(task);
+
+    // then
+    expect(result).toBe("Description fallback");
+  });
+});
+
+describe("ls command with title fallback", () => {
+  it("displays Slack message content instead of (No title)", async () => {
+    // given
+    const slackTask: Task = {
+      id: "slack-task",
+      user_id: 1,
+      recurring_id: null,
+      title: null,
+      description: null,
+      date: todayDateString,
+      datetime: null,
+      datetime_tz: null,
+      original_date: null,
+      original_datetime: null,
+      duration: null,
+      recurrence: null,
+      recurrence_version: null,
+      status: 0,
+      priority: 1,
+      dailyGoal: null,
+      done: false,
+      done_at: null,
+      read_at: null,
+      listId: null,
+      section_id: null,
+      tags_ids: [],
+      sorting: 0,
+      sorting_label: null,
+      origin: null,
+      due_date: null,
+      connector_id: "slack",
+      origin_id: null,
+      origin_account_id: null,
+      akiflow_account_id: null,
+      doc: { original_message: "제안서 크리에이터 ID 검증하는 API가..." },
+      calendar_id: null,
+      time_slot_id: null,
+      links: [],
+      content: {},
+      trashed_at: null,
+      plan_unit: null,
+      plan_period: null,
+      global_list_id_updated_at: null,
+      global_tags_ids_updated_at: null,
+      global_created_at: "2024-01-01T00:00:00Z",
+      global_updated_at: "2024-01-01T00:00:00Z",
+      data: {},
+      deleted_at: null,
+    };
+
+    const getTasksMock = spyOn(
+      AkiflowClient.prototype,
+      "getTasks"
+    ).mockResolvedValue({
+      success: true,
+      message: null,
+      data: [slackTask],
+    });
+
+    const mkdirMock = spyOn(fs, "mkdir").mockResolvedValue(undefined);
+    const writeFileMock = spyOn(fs, "writeFile").mockResolvedValue(undefined);
+    const consoleLogSpy = spyOn(console, "log").mockImplementation(() => {});
+
+    // when
+    await lsCommand.run({
+      args: { inbox: false, all: false, done: false, json: false, plain: true, _task: [] },
+    } as never);
+
+    // then
+    const consoleOutput = consoleLogSpy.mock.calls[0]?.[0] as string | undefined;
+    expect(consoleOutput).toContain("[Slack]");
+    expect(consoleOutput).toContain("제안서 크리에이터 ID 검증하는 API가");
+    expect(consoleOutput).not.toContain("(No title)");
+
+    consoleLogSpy.mockRestore();
+    getTasksMock.mockRestore();
+    mkdirMock.mockRestore();
+    writeFileMock.mockRestore();
   });
 });

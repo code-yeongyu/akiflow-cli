@@ -75,6 +75,50 @@ function colorizeId(id: number): string {
   return `\x1b[36m${String(id).padStart(2, " ")}\x1b[0m`;
 }
 
+function getConnectorPrefix(connectorId: string | null): string {
+  if (!connectorId) return "";
+  const connectorMap: Record<string, string> = {
+    slack: "[Slack]",
+    gmail: "[Gmail]",
+    github: "[GitHub]",
+    jira: "[Jira]",
+    asana: "[Asana]",
+    trello: "[Trello]",
+    notion: "[Notion]",
+    linear: "[Linear]",
+  };
+  return connectorMap[connectorId.toLowerCase()] ?? `[${connectorId}]`;
+}
+
+function truncateText(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  return `${text.substring(0, maxLength - 3)}...`;
+}
+
+export function getTaskDisplayTitle(task: Task, maxLength = 60): string {
+  // 1. Use title if available
+  if (task.title && task.title.trim()) {
+    return task.title;
+  }
+
+  // 2. Use doc.original_message with connector prefix
+  const originalMessage = task.doc?.original_message;
+  if (typeof originalMessage === "string" && originalMessage.trim()) {
+    const prefix = getConnectorPrefix(task.connector_id);
+    const cleanedMessage = originalMessage.replace(/\n/g, " ").trim();
+    const fullMessage = prefix ? `${prefix} ${cleanedMessage}` : cleanedMessage;
+    return truncateText(fullMessage, maxLength);
+  }
+
+  // 3. Use description field
+  if (task.description && task.description.trim()) {
+    return truncateText(task.description.replace(/\n/g, " ").trim(), maxLength);
+  }
+
+  // 4. Last resort
+  return "(No title)";
+}
+
 function formatTaskTable(
   tasks: Task[],
   showShortIds: boolean,
@@ -96,12 +140,9 @@ function formatTaskTable(
         : String(shortId).padStart(2, " ")
       : "   ";
     const statusStr = useColors ? colorizeStatus(task.done) : (task.done ? "✓" : "✗");
-    const title = task.title ?? "(No title)";
-    const titleStr = title.length > 50
-      ? `${title.substring(0, 47)}...`
-      : title;
+    const displayTitle = getTaskDisplayTitle(task, 50);
 
-    return `${idStr}  ${statusStr}      ${titleStr}`;
+    return `${idStr}  ${statusStr}      ${displayTitle}`;
   });
 
   return [header, ...rows].join("\n");
@@ -123,7 +164,7 @@ async function saveTaskContext(tasks: Task[]): Promise<void> {
     tasks: tasks.map((task, index) => ({
       shortId: index + 1,
       id: task.id,
-      title: task.title ?? "(No title)",
+      title: getTaskDisplayTitle(task),
     })),
     timestamp: Date.now(),
   };

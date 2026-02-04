@@ -1,15 +1,25 @@
 import { describe, it, expect, spyOn, beforeEach, afterEach } from "bun:test";
 import { add } from "../../commands/add";
+import * as storage from "../../lib/auth/storage";
+
+const mockCredentials = {
+  token: "test-jwt-token",
+  clientId: "test-client-id-12345",
+  expiryTimestamp: Date.now() + 86400000,
+};
 
 describe("add command", () => {
   let fetchSpy: ReturnType<typeof spyOn>;
+  let loadCredentialsSpy: ReturnType<typeof spyOn>;
 
   beforeEach(() => {
     fetchSpy = spyOn(globalThis, "fetch");
+    loadCredentialsSpy = spyOn(storage, "loadCredentials").mockResolvedValue(mockCredentials);
   });
 
   afterEach(() => {
     fetchSpy.mockRestore();
+    loadCredentialsSpy.mockRestore();
   });
 
   it("creates task in inbox when no date flag provided", async () => {
@@ -339,6 +349,140 @@ describe("add command", () => {
     ).rejects.toThrow();
 
     expect(consoleErrorSpy).toHaveBeenCalled();
+
+    consoleErrorSpy.mockRestore();
+    processExitSpy.mockRestore();
+  });
+
+  it("creates time-blocked task with --at option", async () => {
+    // given
+    const today = new Date();
+    const expectedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
+    fetchSpy.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          success: true,
+          message: null,
+          data: [
+            {
+              id: "test-uuid-time",
+              title: "Test task",
+              date: expectedDate,
+              datetime: "2026-02-04T12:00:00.000Z",
+              datetime_tz: "Asia/Seoul",
+              duration: null,
+              listId: null,
+              global_created_at: new Date().toISOString(),
+              global_updated_at: new Date().toISOString(),
+            },
+          ],
+        }),
+        { status: 200 }
+      )
+    );
+
+    const consoleLogSpy = spyOn(console, "log");
+
+    // when
+    await add.run({
+      args: { title: "Test task", today: false, tomorrow: false, date: undefined, project: undefined, at: "21:00", duration: undefined, t: undefined, d: undefined, p: undefined, _: [] },
+      rawArgs: [],
+    } as any);
+
+    // then
+    const fetchCall = fetchSpy.mock.calls[0];
+    const requestBody = JSON.parse(fetchCall[1]?.body as string);
+    expect(requestBody[0].date).toBe(expectedDate);
+    expect(requestBody[0].datetime).toBeTruthy();
+    expect(requestBody[0].datetime_tz).toBeTruthy();
+    expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("Time:"));
+
+    consoleLogSpy.mockRestore();
+  });
+
+  it("creates time-blocked task with --duration option", async () => {
+    // given
+    const today = new Date();
+    const expectedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
+    fetchSpy.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          success: true,
+          message: null,
+          data: [
+            {
+              id: "test-uuid-duration",
+              title: "Test task",
+              date: expectedDate,
+              datetime: "2026-02-04T12:00:00.000Z",
+              datetime_tz: "Asia/Seoul",
+              duration: 1800,
+              listId: null,
+              global_created_at: new Date().toISOString(),
+              global_updated_at: new Date().toISOString(),
+            },
+          ],
+        }),
+        { status: 200 }
+      )
+    );
+
+    const consoleLogSpy = spyOn(console, "log");
+
+    // when
+    await add.run({
+      args: { title: "Test task", today: true, tomorrow: false, date: undefined, project: undefined, at: "21:00", duration: "30m", t: undefined, d: undefined, p: undefined, _: [] },
+      rawArgs: [],
+    } as any);
+
+    // then
+    const fetchCall = fetchSpy.mock.calls[0];
+    const requestBody = JSON.parse(fetchCall[1]?.body as string);
+    expect(requestBody[0].duration).toBe(1800);
+    expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("Duration:"));
+
+    consoleLogSpy.mockRestore();
+  });
+
+  it("exits with error for invalid time format", async () => {
+    // given
+    const consoleErrorSpy = spyOn(console, "error");
+    const processExitSpy = spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("process.exit");
+    });
+
+    // when/then
+    await expect(
+      add.run({
+        args: { title: "Test task", today: true, tomorrow: false, date: undefined, project: undefined, at: "invalid", duration: undefined, t: undefined, d: undefined, p: undefined, _: [] },
+        rawArgs: [],
+      } as any)
+    ).rejects.toThrow();
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining("Invalid time format"));
+
+    consoleErrorSpy.mockRestore();
+    processExitSpy.mockRestore();
+  });
+
+  it("exits with error for invalid duration format", async () => {
+    // given
+    const consoleErrorSpy = spyOn(console, "error");
+    const processExitSpy = spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("process.exit");
+    });
+
+    // when/then
+    await expect(
+      add.run({
+        args: { title: "Test task", today: true, tomorrow: false, date: undefined, project: undefined, at: undefined, duration: "invalid", t: undefined, d: undefined, p: undefined, _: [] },
+        rawArgs: [],
+      } as any)
+    ).rejects.toThrow();
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining("Invalid duration format"));
 
     consoleErrorSpy.mockRestore();
     processExitSpy.mockRestore();

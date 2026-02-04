@@ -27,3 +27,7 @@ export function parseDuration(duration: string): number {
       throw new Error(`Invalid duration unit: "${unit}". Supported units: m, h, d, w`);
   }
 }
+
+export function parseDurationToSeconds(duration: string): number {
+  return Math.floor(parseDuration(duration) / 1000);
+}

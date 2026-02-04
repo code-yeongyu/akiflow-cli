@@ -50,3 +50,50 @@ export function getTomorrowDate(): string {
 
   return `${year}-${month}-${day}`;
 }
+
+/**
+ * Parse time string (HH:MM or H:MM format) to hours and minutes.
+ *
+ * @param timeString - Time string (e.g., "21:00", "9:30", "14:30")
+ * @returns Object with hours and minutes, or null if parsing fails
+ */
+export function parseTime(timeString: string): { hours: number; minutes: number } | null {
+  const trimmed = timeString.trim();
+  const match = trimmed.match(/^(\d{1,2}):(\d{2})$/);
+
+  if (!match) {
+    return null;
+  }
+
+  const hours = parseInt(match[1]!, 10);
+  const minutes = parseInt(match[2]!, 10);
+
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+    return null;
+  }
+
+  return { hours, minutes };
+}
+
+/**
+ * Create UTC datetime string from date and time.
+ *
+ * @param dateString - ISO date string (YYYY-MM-DD)
+ * @param hours - Hours (0-23)
+ * @param minutes - Minutes (0-59)
+ * @returns UTC ISO datetime string
+ */
+export function createDateTimeUTC(dateString: string, hours: number, minutes: number): string {
+  const [year, month, day] = dateString.split("-").map(Number);
+  const localDate = new Date(year!, month! - 1, day!, hours, minutes, 0, 0);
+  return localDate.toISOString();
+}
+
+/**
+ * Get local timezone identifier.
+ *
+ * @returns IANA timezone string (e.g., "Asia/Seoul")
+ */
+export function getLocalTimezone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}

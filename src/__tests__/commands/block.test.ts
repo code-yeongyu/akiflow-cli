@@ -89,6 +89,7 @@ describe("block command", () => {
     expect(createdPayload).toHaveLength(1);
     expect(createdPayload[0].title).toBe("Deep Work");
     expect(createdPayload[0].duration).toBe(60 * 60 * 1000);
+    expect(createdPayload[0].calendar_id).toBe("cal1");
 
     expect(consoleLogSpy).toHaveBeenCalledWith("✓ Time block created successfully");
     expect(consoleLogSpy).toHaveBeenCalledWith("  ID: test-id-1");

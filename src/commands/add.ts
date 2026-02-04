@@ -4,6 +4,7 @@ import type { CreateTaskPayload } from "../lib/api/types";
 import { getTodayDate, getTomorrowDate, parseDate, parseTime, createDateTimeUTC, getLocalTimezone } from "../lib/date-parser";
 import { parseDurationToSeconds } from "../lib/duration-parser";
 import { addPendingTask } from "../lib/task-cache";
+import { getDefaultCalendarId } from "../lib/calendar";
 
 export const add = defineCommand({
   meta: {
@@ -59,6 +60,7 @@ export const add = defineCommand({
     let taskDateTime: string | undefined;
     let taskDateTimeTz: string | undefined;
     let taskDuration: number | undefined;
+    let calendarId: string | null = null;
 
     if (today) {
       taskDate = getTodayDate();
@@ -86,6 +88,7 @@ export const add = defineCommand({
 
       taskDateTime = createDateTimeUTC(taskDate, parsedTime.hours, parsedTime.minutes);
       taskDateTimeTz = getLocalTimezone();
+      calendarId = await getDefaultCalendarId(client);
     }
 
     if (durationInput) {
@@ -146,6 +149,10 @@ export const add = defineCommand({
 
     if (listId) {
       task.listId = listId;
+    }
+
+    if (calendarId) {
+      task.calendar_id = calendarId;
     }
 
     try {

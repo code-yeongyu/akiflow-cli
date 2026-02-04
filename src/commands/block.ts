@@ -113,6 +113,8 @@ export const block = defineCommand({
       const allTimeSlots = timeSlotsResponse.data;
       const freeSlots = findFreeSlots(allTimeSlots);
 
+      const calendarId = allTimeSlots.length > 0 ? allTimeSlots[0]!.calendar_id : null;
+
       const selectedSlot = findSlotForDuration(freeSlots, durationMs);
 
       if (!selectedSlot) {
@@ -162,6 +164,7 @@ export const block = defineCommand({
         duration: durationMs,
         global_created_at: now,
         global_updated_at: now,
+        ...(calendarId && { calendar_id: calendarId }),
       };
 
       const response = await client.upsertTasks([task]);

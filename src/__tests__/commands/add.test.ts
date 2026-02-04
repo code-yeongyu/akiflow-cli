@@ -359,7 +359,42 @@ describe("add command", () => {
     const today = new Date();
     const expectedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
-    fetchSpy.mockResolvedValue(
+    fetchSpy.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          success: true,
+          message: null,
+          data: [
+            {
+              id: "ts-1",
+              user_id: 1,
+              recurring_id: null,
+              calendar_id: "test-calendar-id",
+              label_id: null,
+              section_id: null,
+              status: "confirmed",
+              title: "Existing event",
+              description: null,
+              original_start_time: null,
+              start_time: new Date().toISOString(),
+              end_time: new Date().toISOString(),
+              start_datetime_tz: new Date().toISOString(),
+              recurrence: null,
+              color: null,
+              content: {},
+              global_label_id_updated_at: null,
+              global_created_at: new Date().toISOString(),
+              global_updated_at: new Date().toISOString(),
+              data: {},
+              deleted_at: null,
+            },
+          ],
+        }),
+        { status: 200 }
+      )
+    );
+
+    fetchSpy.mockResolvedValueOnce(
       new Response(
         JSON.stringify({
           success: true,
@@ -373,6 +408,7 @@ describe("add command", () => {
               datetime_tz: "Asia/Seoul",
               duration: null,
               listId: null,
+              calendar_id: "test-calendar-id",
               global_created_at: new Date().toISOString(),
               global_updated_at: new Date().toISOString(),
             },
@@ -391,11 +427,13 @@ describe("add command", () => {
     } as any);
 
     // then
-    const fetchCall = fetchSpy.mock.calls[0];
-    const requestBody = JSON.parse(fetchCall[1]?.body as string);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    const upsertCall = fetchSpy.mock.calls[1];
+    const requestBody = JSON.parse(upsertCall[1]?.body as string);
     expect(requestBody[0].date).toBe(expectedDate);
     expect(requestBody[0].datetime).toBeTruthy();
     expect(requestBody[0].datetime_tz).toBeTruthy();
+    expect(requestBody[0].calendar_id).toBe("test-calendar-id");
     expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("Time:"));
 
     consoleLogSpy.mockRestore();
@@ -406,7 +444,42 @@ describe("add command", () => {
     const today = new Date();
     const expectedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
-    fetchSpy.mockResolvedValue(
+    fetchSpy.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          success: true,
+          message: null,
+          data: [
+            {
+              id: "ts-1",
+              user_id: 1,
+              recurring_id: null,
+              calendar_id: "test-calendar-id",
+              label_id: null,
+              section_id: null,
+              status: "confirmed",
+              title: "Existing event",
+              description: null,
+              original_start_time: null,
+              start_time: new Date().toISOString(),
+              end_time: new Date().toISOString(),
+              start_datetime_tz: new Date().toISOString(),
+              recurrence: null,
+              color: null,
+              content: {},
+              global_label_id_updated_at: null,
+              global_created_at: new Date().toISOString(),
+              global_updated_at: new Date().toISOString(),
+              data: {},
+              deleted_at: null,
+            },
+          ],
+        }),
+        { status: 200 }
+      )
+    );
+
+    fetchSpy.mockResolvedValueOnce(
       new Response(
         JSON.stringify({
           success: true,
@@ -420,6 +493,7 @@ describe("add command", () => {
               datetime_tz: "Asia/Seoul",
               duration: 1800,
               listId: null,
+              calendar_id: "test-calendar-id",
               global_created_at: new Date().toISOString(),
               global_updated_at: new Date().toISOString(),
             },
@@ -438,9 +512,11 @@ describe("add command", () => {
     } as any);
 
     // then
-    const fetchCall = fetchSpy.mock.calls[0];
-    const requestBody = JSON.parse(fetchCall[1]?.body as string);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    const upsertCall = fetchSpy.mock.calls[1];
+    const requestBody = JSON.parse(upsertCall[1]?.body as string);
     expect(requestBody[0].duration).toBe(1800);
+    expect(requestBody[0].calendar_id).toBe("test-calendar-id");
     expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("Duration:"));
 
     consoleLogSpy.mockRestore();

@@ -24,7 +24,7 @@ const main = defineCommand({
   meta: {
     name: "af",
     description: "Akiflow CLI - Task management and automation",
-    version: "0.0.1",
+    version: "0.1.1",
   },
   subCommands: {
     add,
@@ -37,9 +37,6 @@ const main = defineCommand({
     cal,
     block,
     auth: authCommand,
-  },
-  run: async () => {
-    console.log("Akiflow CLI v0.0.1");
   },
 });
 

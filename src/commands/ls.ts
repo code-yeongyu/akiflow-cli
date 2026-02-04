@@ -181,7 +181,13 @@ export const lsCommand = defineCommand({
       const filteredTasks = filterTasks(tasks, options);
 
       if (options.json) {
-        console.log(JSON.stringify(filteredTasks, null, 2));
+        const output = JSON.stringify(filteredTasks, null, 2);
+        await new Promise<void>((resolve, reject) => {
+          process.stdout.write(output + '\n', (err) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        });
         return;
       }
 

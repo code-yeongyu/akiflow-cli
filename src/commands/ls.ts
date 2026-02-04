@@ -4,6 +4,7 @@ import type { Task } from "../lib/api/types";
 import * as path from "node:path";
 import * as os from "node:os";
 import { mkdir, writeFile } from "node:fs/promises";
+import { loadPendingTasks, mergeTasks, removePendingTask } from "../lib/task-cache";
 
 interface TaskContext {
   tasks: Array<{
@@ -217,7 +218,19 @@ export const lsCommand = defineCommand({
 
     try {
       const response = await client.getTasks();
-      const tasks = response.data;
+      const apiTasks = response.data;
+
+      // Load pending tasks and merge with API response
+      const pendingTasks = await loadPendingTasks();
+      const tasks = mergeTasks(apiTasks, pendingTasks);
+
+      // Clean up pending tasks that are now in API response
+      const apiTaskIds = new Set(apiTasks.map((t) => t.id));
+      for (const pending of pendingTasks) {
+        if (apiTaskIds.has(pending.id)) {
+          await removePendingTask(pending.id);
+        }
+      }
 
       const filteredTasks = filterTasks(tasks, options);
 

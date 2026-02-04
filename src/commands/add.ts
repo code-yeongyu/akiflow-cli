@@ -2,6 +2,7 @@ import { defineCommand } from "citty";
 import { createClient } from "../lib/api/client";
 import type { CreateTaskPayload } from "../lib/api/types";
 import { getTodayDate, getTomorrowDate, parseDate } from "../lib/date-parser";
+import { addPendingTask } from "../lib/task-cache";
 
 export const add = defineCommand({
   meta: {
@@ -105,6 +106,9 @@ export const add = defineCommand({
         console.error("Error: Failed to create task - no data returned");
         process.exit(1);
       }
+
+      // Save to pending cache for immediate visibility in ls
+      await addPendingTask(createdTask);
 
       console.log("✓ Task created successfully");
       console.log(`  ID: ${createdTask.id}`);

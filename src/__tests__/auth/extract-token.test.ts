@@ -1,6 +1,8 @@
 /// <reference types="bun" />
 import { describe, it, expect, beforeAll, afterAll } from "bun:test";
 import { Database } from "bun:sqlite";
+
+const isMacOS = process.platform === "darwin";
 import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -102,7 +104,7 @@ describe("getKeychainPassword", () => {
     expect(result).toBeNull();
   });
 
-  it("returns string or null for chrome", async () => {
+  it.skipIf(!isMacOS)("returns string or null for chrome", async () => {
     // given
     const browser = "chrome";
 
@@ -178,7 +180,7 @@ describe("extractFromBrowser", () => {
     }
   });
 
-  it("returns array of tokens from safari if installed", async () => {
+  it.skipIf(!isMacOS)("returns array of tokens from safari if installed", async () => {
     // given
     const browser = "safari";
 

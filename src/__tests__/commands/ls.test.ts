@@ -260,7 +260,7 @@ describe("ls command", () => {
 
     const consoleLogSpy = spyOn(console, "log").mockImplementation(() => {});
 
-    await lsCommand.run({
+    await lsCommand.run?.({
       args: { inbox: false, all: false, done: false, json: false, plain: false, _task: [] },
     } as never);
 
@@ -292,7 +292,7 @@ describe("ls command", () => {
 
     const consoleLogSpy = spyOn(console, "log").mockImplementation(() => {});
 
-    await lsCommand.run({
+    await lsCommand.run?.({
       args: { inbox: true, all: false, done: false, json: false, plain: false, _task: [] },
     } as never);
 
@@ -322,7 +322,7 @@ describe("ls command", () => {
 
     const consoleLogSpy = spyOn(console, "log").mockImplementation(() => {});
 
-    await lsCommand.run({
+    await lsCommand.run?.({
       args: { inbox: false, all: true, done: false, json: false, plain: false, _task: [] },
     } as never);
 
@@ -352,7 +352,7 @@ describe("ls command", () => {
 
     const consoleLogSpy = spyOn(console, "log").mockImplementation(() => {});
 
-    await lsCommand.run({
+    await lsCommand.run?.({
       args: { inbox: false, all: false, done: true, json: false, plain: false, _task: [] },
     } as never);
 
@@ -382,7 +382,7 @@ describe("ls command", () => {
 
     const consoleLogSpy = spyOn(console, "log").mockImplementation(() => {});
 
-    await lsCommand.run({
+    await lsCommand.run?.({
       args: {
         inbox: false,
         all: false,
@@ -419,7 +419,7 @@ describe("ls command", () => {
 
     const consoleLogSpy = spyOn(console, "log").mockImplementation(() => {});
 
-    await lsCommand.run({
+    await lsCommand.run?.({
       args: { inbox: false, all: true, done: false, json: true, plain: false, _task: [] },
     } as never);
 
@@ -452,7 +452,7 @@ describe("ls command", () => {
 
     const consoleLogSpy = spyOn(console, "log").mockImplementation(() => {});
 
-    await lsCommand.run({
+    await lsCommand.run?.({
       args: { inbox: false, all: false, done: false, json: false, plain: true, _task: [] },
     } as never);
 
@@ -481,7 +481,7 @@ describe("ls command", () => {
 
     const consoleLogSpy = spyOn(console, "log").mockImplementation(() => {});
 
-    await lsCommand.run({
+    await lsCommand.run?.({
       args: { inbox: false, all: false, done: false, json: false, plain: false, _task: [] },
     } as never);
 
@@ -508,7 +508,7 @@ describe("ls command", () => {
 
     let writtenData = "";
     const writeFileMock = spyOn(fs, "writeFile").mockImplementation(
-      async (file: unknown, data: string | Buffer) => {
+      async (file: unknown, data: unknown) => {
         writtenData = String(data);
         return Promise.resolve(undefined);
       }
@@ -516,7 +516,7 @@ describe("ls command", () => {
 
     const consoleLogSpy = spyOn(console, "log").mockImplementation(() => {});
 
-    await lsCommand.run({
+    await lsCommand.run?.({
       args: { inbox: false, all: false, done: false, json: false, plain: false, _task: [] },
     } as never);
 
@@ -546,7 +546,7 @@ describe("ls command", () => {
     });
 
     try {
-      await lsCommand.run({
+      await lsCommand.run?.({
         args: { inbox: false, all: false, done: false, json: false, plain: false, _task: [] },
       } as never);
     } catch (error) {
@@ -839,7 +839,7 @@ describe("ls command with title fallback", () => {
     const consoleLogSpy = spyOn(console, "log").mockImplementation(() => {});
 
     // when
-    await lsCommand.run({
+    await lsCommand.run?.({
       args: { inbox: false, all: false, done: false, json: false, plain: true, _task: [] },
     } as never);
 

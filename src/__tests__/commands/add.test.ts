@@ -1,6 +1,7 @@
 import { describe, it, expect, spyOn, beforeEach, afterEach } from "bun:test";
 import { add } from "../../commands/add";
 import * as storage from "../../lib/auth/storage";
+import * as taskCache from "../../lib/task-cache";
 
 const mockCredentials = {
   token: "test-jwt-token",
@@ -11,15 +12,18 @@ const mockCredentials = {
 describe("add command", () => {
   let fetchSpy: ReturnType<typeof spyOn>;
   let loadCredentialsSpy: ReturnType<typeof spyOn>;
+  let addPendingTaskSpy: ReturnType<typeof spyOn>;
 
   beforeEach(() => {
     fetchSpy = spyOn(globalThis, "fetch");
     loadCredentialsSpy = spyOn(storage, "loadCredentials").mockResolvedValue(mockCredentials);
+    addPendingTaskSpy = spyOn(taskCache, "addPendingTask").mockResolvedValue(undefined);
   });
 
   afterEach(() => {
     fetchSpy.mockRestore();
     loadCredentialsSpy.mockRestore();
+    addPendingTaskSpy.mockRestore();
   });
 
   it("creates task in inbox when no date flag provided", async () => {
@@ -47,7 +51,7 @@ describe("add command", () => {
     const consoleLogSpy = spyOn(console, "log");
 
     // when
-    await add.run({
+    await add.run?.({
       args: { title: "Test task", today: false, tomorrow: false, date: undefined, project: undefined, t: undefined, d: undefined, p: undefined, _: [] },
       rawArgs: [],
     } as any);
@@ -87,7 +91,7 @@ describe("add command", () => {
     const consoleLogSpy = spyOn(console, "log");
 
     // when
-    await add.run({
+    await add.run?.({
       args: { title: "Test task", today: true, tomorrow: false, date: undefined, project: undefined, t: undefined, d: undefined, p: undefined, _: [] },
       rawArgs: [],
     } as any);
@@ -130,7 +134,7 @@ describe("add command", () => {
     const consoleLogSpy = spyOn(console, "log");
 
     // when
-    await add.run({
+    await add.run?.({
       args: { title: "Test task", today: false, tomorrow: true, date: undefined, project: undefined, t: undefined, d: undefined, p: undefined, _: [] },
       rawArgs: [],
     } as any);
@@ -168,7 +172,7 @@ describe("add command", () => {
     const consoleLogSpy = spyOn(console, "log");
 
     // when
-    await add.run({
+    await add.run?.({
       args: { title: "Test task", today: false, tomorrow: false, date: "next friday", project: undefined, t: undefined, d: undefined, p: undefined, _: [] },
       rawArgs: [],
     } as any);
@@ -236,7 +240,7 @@ describe("add command", () => {
     const consoleLogSpy = spyOn(console, "log");
 
     // when
-    await add.run({
+    await add.run?.({
       args: { title: "Test task", today: false, tomorrow: false, date: undefined, project: "Work", t: undefined, d: undefined, p: undefined, _: [] },
       rawArgs: [],
     } as any);
@@ -285,7 +289,7 @@ describe("add command", () => {
 
     // when/then
     await expect(
-      add.run({
+      add.run?.({
         args: { title: "Test task", today: false, tomorrow: false, date: undefined, project: "Nonexistent", t: undefined, d: undefined, p: undefined, _: [] },
         rawArgs: [],
       } as any)
@@ -320,7 +324,7 @@ describe("add command", () => {
     );
 
     // when
-    await add.run({
+    await add.run?.({
       args: { title: "Test task", today: false, tomorrow: false, date: undefined, project: undefined, t: undefined, d: undefined, p: undefined, _: [] },
       rawArgs: [],
     } as any);
@@ -342,7 +346,7 @@ describe("add command", () => {
 
     // when/then
     await expect(
-      add.run({
+      add.run?.({
         args: { title: "Test task", today: false, tomorrow: false, date: undefined, project: undefined, t: undefined, d: undefined, p: undefined, _: [] },
         rawArgs: [],
       } as any)
@@ -421,7 +425,7 @@ describe("add command", () => {
     const consoleLogSpy = spyOn(console, "log");
 
     // when
-    await add.run({
+    await add.run?.({
       args: { title: "Test task", today: false, tomorrow: false, date: undefined, project: undefined, at: "21:00", duration: undefined, t: undefined, d: undefined, p: undefined, _: [] },
       rawArgs: [],
     } as any);
@@ -506,7 +510,7 @@ describe("add command", () => {
     const consoleLogSpy = spyOn(console, "log");
 
     // when
-    await add.run({
+    await add.run?.({
       args: { title: "Test task", today: true, tomorrow: false, date: undefined, project: undefined, at: "21:00", duration: "30m", t: undefined, d: undefined, p: undefined, _: [] },
       rawArgs: [],
     } as any);
@@ -531,7 +535,7 @@ describe("add command", () => {
 
     // when/then
     await expect(
-      add.run({
+      add.run?.({
         args: { title: "Test task", today: true, tomorrow: false, date: undefined, project: undefined, at: "invalid", duration: undefined, t: undefined, d: undefined, p: undefined, _: [] },
         rawArgs: [],
       } as any)
@@ -552,7 +556,7 @@ describe("add command", () => {
 
     // when/then
     await expect(
-      add.run({
+      add.run?.({
         args: { title: "Test task", today: true, tomorrow: false, date: undefined, project: undefined, at: undefined, duration: "invalid", t: undefined, d: undefined, p: undefined, _: [] },
         rawArgs: [],
       } as any)

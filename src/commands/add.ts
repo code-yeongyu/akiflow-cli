@@ -153,6 +153,7 @@ export const add = defineCommand({
 
     if (calendarId) {
       task.calendar_id = calendarId;
+      task.status = 2; // Time-blocked status
     }
 
     try {

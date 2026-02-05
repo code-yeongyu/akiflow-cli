@@ -67,7 +67,13 @@ function taskRecursOnDate(task: Task, date: Date): boolean {
   const { start, end } = getLocalDayRange(date);
 
   try {
-    const rule = rrulestr(task.recurrence, {
+    // recurrence can be string or string[] - normalize to string
+    const rruleString = Array.isArray(task.recurrence) 
+      ? task.recurrence[0] 
+      : task.recurrence;
+    if (!rruleString) return false;
+    
+    const rule = rrulestr(rruleString, {
       dtstart: getRecurrenceDtstart(task),
     });
     return rule.between(start, end, true).length > 0;

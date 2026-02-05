@@ -190,7 +190,7 @@ export class AkiflowClient {
     }
   }
 
-  async getTasks(options: { limit?: number; syncToken?: string } = {}): Promise<
+  async getTasks(options: { limit?: number; syncToken?: string; offset?: number } = {}): Promise<
     ApiResponse<Task[]>
   > {
     const params = new URLSearchParams();
@@ -200,7 +200,61 @@ export class AkiflowClient {
       params.set("sync_token", options.syncToken);
     }
 
+    if (options.offset !== undefined) {
+      params.set("offset", String(options.offset));
+    }
+
     return this.request<Task[]>("GET", `/v5/tasks?${params.toString()}`);
+  }
+
+  /**
+   * Fetch all tasks using pagination.
+   *
+   * Akiflow's `/v5/tasks` endpoint uses `sync_token` pagination (cursor-like).
+   * The `offset` parameter is currently ignored by the API (it returns the same page).
+   */
+  async getAllTasks(): Promise<Task[]> {
+    const allTasks: Task[] = [];
+    const limit = DEFAULT_LIMIT;
+
+    let syncToken: string | undefined;
+    const seenTokens = new Set<string>();
+
+    while (true) {
+      const response = await this.getTasks({ limit, syncToken });
+      const pageTasks = response.data ?? [];
+
+      if (pageTasks.length === 0) {
+        break;
+      }
+
+      allTasks.push(...pageTasks);
+
+      const hasNext = response.has_next_page === true;
+      if (!hasNext) {
+        break;
+      }
+
+      const nextToken = response.sync_token;
+      if (!nextToken) {
+        break;
+      }
+
+      // Prevent infinite loops if API returns a repeating token.
+      if (seenTokens.has(nextToken)) {
+        break;
+      }
+      seenTokens.add(nextToken);
+
+      syncToken = nextToken;
+
+      // Safety limit to prevent runaway loops.
+      if (allTasks.length > 50000) {
+        break;
+      }
+    }
+
+    return allTasks;
   }
 
   async upsertTasks(

@@ -162,6 +162,67 @@ describe("AkiflowClient", () => {
     });
   });
 
+  describe("getAllTasks", () => {
+    it("paginates using sync_token (not offset)", async () => {
+      // given
+      const page1 = {
+        ...mockTaskResponse,
+        data: [
+          {
+            ...mockTaskResponse.data[0]!,
+            id: "task-1",
+            title: "Page 1 Task",
+          },
+        ],
+        sync_token: "token-page-1",
+        has_next_page: true,
+      };
+
+      const page2 = {
+        ...mockTaskResponse,
+        data: [
+          {
+            ...mockTaskResponse.data[0]!,
+            id: "task-2",
+            title: "Page 2 Task",
+          },
+        ],
+        sync_token: "token-page-2",
+        has_next_page: false,
+      };
+
+      fetchSpy = spyOn(globalThis, "fetch")
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify(page1), { status: 200 })
+        )
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify(page2), { status: 200 })
+        );
+
+      const client = createClient();
+
+      // when
+      const all = await client.getAllTasks();
+
+      // then
+      expect(all).toHaveLength(2);
+      expect(all.map((t) => t.id)).toEqual(["task-1", "task-2"]);
+
+      expect(fetchSpy).toHaveBeenNthCalledWith(
+        1,
+        "https://api.akiflow.com/v5/tasks?limit=2500",
+        expect.any(Object)
+      );
+
+      // Second call must use sync_token cursor from page1
+      expect(fetchSpy).toHaveBeenNthCalledWith(
+        2,
+        "https://api.akiflow.com/v5/tasks?limit=2500&sync_token=token-page-1",
+        expect.any(Object)
+      );
+    });
+  });
+
   describe("upsertTasks", () => {
     it("sends PATCH request with task array", async () => {
       // given

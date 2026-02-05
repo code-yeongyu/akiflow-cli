@@ -21,6 +21,7 @@ interface LsOptions {
   all?: boolean;
   done?: boolean;
   project?: string;
+  search?: string;
   json?: boolean;
   plain?: boolean;
 }
@@ -146,6 +147,25 @@ function filterTasks(tasks: Task[], options: LsOptions): Task[] {
 
   let filtered = tasks;
 
+  if (options.search) {
+    const searchTerm = options.search.toLowerCase();
+    filtered = filtered.filter((task) => {
+      const title = task.title?.toLowerCase() ?? "";
+      const description = task.description?.toLowerCase() ?? "";
+      const originalMessage = (task.doc?.original_message as string | undefined)?.toLowerCase() ?? "";
+      return title.includes(searchTerm) || description.includes(searchTerm) || originalMessage.includes(searchTerm);
+    });
+
+    if (options.project) {
+      const projectName = options.project;
+      filtered = filtered.filter((task) =>
+        task.listId?.toLowerCase().includes(projectName.toLowerCase())
+      );
+    }
+
+    return filtered;
+  }
+
   if (options.done) {
     filtered = filtered.filter((task) => task.done);
   } else {
@@ -202,9 +222,10 @@ function truncateText(text: string, maxLength: number): string {
 }
 
 export function getTaskDisplayTitle(task: Task, maxLength = 60): string {
-  // 1. Use title if available
+  // 1. Use title if available (sanitize newlines for CLI output)
   if (task.title && task.title.trim()) {
-    return task.title;
+    const cleanedTitle = task.title.replace(/\n/g, " ").trim();
+    return truncateText(cleanedTitle, maxLength);
   }
 
   // 2. Use doc.original_message with connector prefix
@@ -300,6 +321,11 @@ export const lsCommand = defineCommand({
       type: "string",
       description: "Filter by project name",
     },
+    search: {
+      type: "string",
+      alias: "s",
+      description: "Search tasks by title, description, or content",
+    },
     json: {
       type: "boolean",
       description: "Output as JSON",
@@ -315,6 +341,7 @@ export const lsCommand = defineCommand({
       all: args.all as boolean,
       done: args.done as boolean,
       project: args.project as string,
+      search: args.search as string,
       json: args.json as boolean,
       plain: args.plain as boolean,
     };
@@ -322,8 +349,10 @@ export const lsCommand = defineCommand({
     const client = createClient();
 
     try {
-      const response = await client.getTasks();
-      const apiTasks = response.data;
+      // Use getAllTasks for --all flag or --search to fetch beyond 2500 limit
+      const apiTasks = (options.all || options.search)
+        ? await client.getAllTasks()
+        : (await client.getTasks()).data;
 
       // Load pending tasks and merge with API response
       const pendingTasks = await loadPendingTasks();

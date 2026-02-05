@@ -11,6 +11,9 @@ const tomorrow = new Date(today);
 tomorrow.setDate(tomorrow.getDate() + 1);
 const tomorrowDateString = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
 
+const weekdayMap = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"] as const;
+const todayByday = weekdayMap[today.getDay()]!;
+
 const mockTasks: Task[] = [
   {
     id: "task-1",
@@ -270,6 +273,96 @@ describe("ls command", () => {
     expect(consoleOutput).not.toContain("Inbox task without date");
     expect(consoleOutput).not.toContain("Tomorrow task");
     expect(consoleOutput).not.toContain("Completed task");
+
+    consoleLogSpy.mockRestore();
+    getTasksMock.mockRestore();
+    mkdirMock.mockRestore();
+    writeFileMock.mockRestore();
+  });
+
+  it("shows virtual recurring tasks for today when Akiflow API has no pending instance", async () => {
+    const recurringMaster: Task = {
+      ...mockTasks[0]!,
+      id: "recurring-master-1",
+      title: "General 작성",
+      date: null,
+      recurring_id: null,
+      recurrence: `RRULE:FREQ=WEEKLY;BYDAY=${todayByday}`,
+      recurrence_version: 1,
+    };
+
+    const getTasksMock = spyOn(
+      AkiflowClient.prototype,
+      "getTasks"
+    ).mockResolvedValue({
+      success: true,
+      message: null,
+      data: [recurringMaster],
+    });
+
+    const mkdirMock = spyOn(fs, "mkdir").mockResolvedValue(undefined);
+    const writeFileMock = spyOn(fs, "writeFile").mockResolvedValue(undefined);
+
+    const consoleLogSpy = spyOn(console, "log").mockImplementation(() => {});
+
+    await lsCommand.run({
+      args: { inbox: false, all: false, done: false, json: false, plain: false, _task: [] },
+    } as never);
+
+    const consoleOutput = consoleLogSpy.mock.calls[0]?.[0] as string | undefined;
+    expect(consoleOutput).toContain("General 작성");
+
+    consoleLogSpy.mockRestore();
+    getTasksMock.mockRestore();
+    mkdirMock.mockRestore();
+    writeFileMock.mockRestore();
+  });
+
+  it("does not create a virtual recurring task when today's instance is already done", async () => {
+    const recurringMaster: Task = {
+      ...mockTasks[0]!,
+      id: "recurring-master-2",
+      title: "General 작성",
+      date: null,
+      recurring_id: null,
+      recurrence: `RRULE:FREQ=WEEKLY;BYDAY=${todayByday}`,
+      recurrence_version: 1,
+    };
+
+    const doneInstance: Task = {
+      ...mockTasks[0]!,
+      id: "recurring-instance-done-1",
+      title: "General 작성",
+      recurring_id: recurringMaster.id,
+      date: todayDateString,
+      done: true,
+      status: 2,
+      done_at: "2024-01-01T10:00:00Z",
+      recurrence: null,
+      recurrence_version: null,
+      global_updated_at: "2024-01-01T10:00:00Z",
+    };
+
+    const getTasksMock = spyOn(
+      AkiflowClient.prototype,
+      "getTasks"
+    ).mockResolvedValue({
+      success: true,
+      message: null,
+      data: [recurringMaster, doneInstance],
+    });
+
+    const mkdirMock = spyOn(fs, "mkdir").mockResolvedValue(undefined);
+    const writeFileMock = spyOn(fs, "writeFile").mockResolvedValue(undefined);
+
+    const consoleLogSpy = spyOn(console, "log").mockImplementation(() => {});
+
+    await lsCommand.run({
+      args: { inbox: false, all: false, done: false, json: false, plain: false, _task: [] },
+    } as never);
+
+    const consoleOutput = consoleLogSpy.mock.calls[0]?.[0] as string | undefined;
+    expect(consoleOutput).not.toContain("General 작성");
 
     consoleLogSpy.mockRestore();
     getTasksMock.mockRestore();

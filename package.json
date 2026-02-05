@@ -41,7 +41,8 @@
   },
   "dependencies": {
     "chrono-node": "^2.9.0",
-    "citty": "^0.2.0"
+    "citty": "^0.2.0",
+    "rrule": "^2.8.1"
   },
   "scripts": {
     "dev": "bun run --hot src/index.ts",

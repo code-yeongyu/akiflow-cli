@@ -5,6 +5,7 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { mkdir, writeFile } from "node:fs/promises";
 import { loadPendingTasks, mergeTasks, removePendingTask } from "../lib/task-cache";
+import { rrulestr } from "rrule";
 
 interface TaskContext {
   tasks: Array<{
@@ -30,6 +31,104 @@ function getTodayDateString(): string {
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const day = String(now.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function getLocalDayRange(date: Date): { start: Date; end: Date } {
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(date);
+  end.setHours(23, 59, 59, 999);
+  return { start, end };
+}
+
+function getRecurrenceDtstart(task: Task): Date {
+  // Akiflow recurrence strings often come without DTSTART.
+  // Pick a stable DTSTART to avoid rrule defaulting to "now".
+  const dateTimeString = task.original_datetime ?? task.datetime ?? null;
+  if (dateTimeString) {
+    const dt = new Date(dateTimeString);
+    if (!Number.isNaN(dt.getTime())) return dt;
+  }
+
+  const dateString = task.original_date ?? task.date ?? null;
+  if (dateString) {
+    const dt = new Date(`${dateString}T00:00:00`);
+    if (!Number.isNaN(dt.getTime())) return dt;
+  }
+
+  const created = new Date(task.global_created_at);
+  if (!Number.isNaN(created.getTime())) return created;
+
+  return new Date();
+}
+
+function taskRecursOnDate(task: Task, date: Date): boolean {
+  if (!task.recurrence) return false;
+  const { start, end } = getLocalDayRange(date);
+
+  try {
+    const rule = rrulestr(task.recurrence, {
+      dtstart: getRecurrenceDtstart(task),
+    });
+    return rule.between(start, end, true).length > 0;
+  } catch {
+    return false;
+  }
+}
+
+function addVirtualRecurringTasksForToday(tasks: Task[]): Task[] {
+  const todayString = getTodayDateString();
+  const today = new Date();
+
+  const virtuals: Task[] = [];
+
+  for (const master of tasks) {
+    if (!master.recurrence) continue;
+    if (master.deleted_at) continue;
+
+    if (!taskRecursOnDate(master, today)) continue;
+
+    // If there's already a real instance for today (done or not), don't create a virtual one.
+    const hasAnyInstanceToday = tasks.some(
+      (t) =>
+        (t.recurring_id === master.id || t.id === master.id) &&
+        t.date === todayString &&
+        !t.deleted_at
+    );
+    if (hasAnyInstanceToday) continue;
+
+    // If an instance is already completed today, don't show a pending virtual one.
+    const hasDoneInstanceToday = tasks.some(
+      (t) =>
+        t.recurring_id === master.id &&
+        t.date === todayString &&
+        t.done &&
+        !t.deleted_at
+    );
+    if (hasDoneInstanceToday) continue;
+
+    const nowIso = new Date().toISOString();
+
+    virtuals.push({
+      ...master,
+      id: `virtual:${master.id}:${todayString}`,
+      recurring_id: master.id,
+      date: todayString,
+      datetime: null,
+      datetime_tz: null,
+      original_date: todayString,
+      original_datetime: null,
+      done: false,
+      done_at: null,
+      status: 0,
+      // Prevent virtual instances from being treated as recurrence masters.
+      recurrence: null,
+      recurrence_version: null,
+      global_updated_at: nowIso,
+    });
+  }
+
+  return virtuals.length ? [...tasks, ...virtuals] : tasks;
 }
 
 function filterTasks(tasks: Task[], options: LsOptions): Task[] {
@@ -232,7 +331,12 @@ export const lsCommand = defineCommand({
         }
       }
 
-      const filteredTasks = filterTasks(tasks, options);
+      const tasksWithVirtualRecurring =
+        !options.all && !options.done && !options.inbox
+          ? addVirtualRecurringTasksForToday(tasks)
+          : tasks;
+
+      const filteredTasks = filterTasks(tasksWithVirtualRecurring, options);
 
       if (options.json) {
         const output = JSON.stringify(filteredTasks, null, 2);

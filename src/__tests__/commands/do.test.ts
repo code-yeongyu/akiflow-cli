@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, spyOn } from "bun:test";
 import { writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { homedir } from "node:os";
+import { tmpdir } from "node:os";
+import * as os from "node:os";
 import { doCommand } from "../../commands/do";
+import * as storage from "../../lib/auth/storage";
 
 class ExitError extends Error {
   constructor(public code: number) {
@@ -10,7 +12,9 @@ class ExitError extends Error {
   }
 }
 
-const testCacheDir = join(homedir(), ".cache", "af");
+// Use temp directory for tests
+const testTmpDir = join(tmpdir(), `af-test-do-${process.pid}`);
+const testCacheDir = join(testTmpDir, ".cache", "af");
 const testContextFile = join(testCacheDir, "last-list.json");
 
 const mockContextFile = {
@@ -22,24 +26,41 @@ const mockContextFile = {
   timestamp: Date.now(),
 };
 
+const mockCredentials = {
+  token: "test-jwt-token",
+  clientId: "test-client-id-12345",
+  expiryTimestamp: Date.now() + 86400000,
+};
+
 describe("do command", () => {
+  let loadCredentialsSpy: ReturnType<typeof spyOn>;
+  let processExitSpy: ReturnType<typeof spyOn>;
+  let homedirSpy: ReturnType<typeof spyOn>;
+
   beforeEach(() => {
+    // Mock homedir to return temp directory
+    homedirSpy = spyOn(os, "homedir").mockReturnValue(testTmpDir);
     mkdirSync(testCacheDir, { recursive: true });
     writeFileSync(testContextFile, JSON.stringify(mockContextFile));
-    spyOn(process, "exit").mockImplementation((code?: number) => {
+    loadCredentialsSpy = spyOn(storage, "loadCredentials").mockResolvedValue(mockCredentials);
+    processExitSpy = spyOn(process, "exit").mockImplementation((code?: number) => {
       throw new ExitError(code ?? 0);
     });
   });
 
   afterEach(() => {
+    loadCredentialsSpy.mockRestore();
+    processExitSpy.mockRestore();
+    homedirSpy.mockRestore();
     try {
-      rmSync(testContextFile);
+      rmSync(testTmpDir, { recursive: true, force: true });
     } catch {
       // file may not exist
     }
   });
 
   it("completes single task by short ID", async () => {
+    // given
     const consoleSpy = spyOn(console, "log");
     const fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(
@@ -63,10 +84,12 @@ describe("do command", () => {
       args: { ids: "1" },
     };
 
-    await doCommand.run?.(mockContext as any);
+    // when
+    await doCommand.run?.(mockContext as never);
 
+    // then
     expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining("✓ Completed 1 task(s):")
+      expect.stringContaining("Completed 1 task(s):")
     );
     expect(consoleSpy).toHaveBeenCalledWith(
       expect.stringContaining("Buy groceries")
@@ -75,6 +98,7 @@ describe("do command", () => {
   });
 
   it("completes multiple tasks by short IDs", async () => {
+    // given
     const consoleSpy = spyOn(console, "log");
     const fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(
@@ -104,10 +128,12 @@ describe("do command", () => {
       args: { ids: ["1", "2"] },
     };
 
-    await doCommand.run?.(mockContext as any);
+    // when
+    await doCommand.run?.(mockContext as never);
 
+    // then
     expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining("✓ Completed 2 task(s):")
+      expect.stringContaining("Completed 2 task(s):")
     );
     expect(consoleSpy).toHaveBeenCalledWith(
       expect.stringContaining("Buy groceries")
@@ -119,6 +145,7 @@ describe("do command", () => {
   });
 
   it("completes task by partial UUID", async () => {
+    // given
     const consoleSpy = spyOn(console, "log");
     const fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(
@@ -142,10 +169,12 @@ describe("do command", () => {
       args: { ids: "abc123" },
     };
 
-    await doCommand.run?.(mockContext as any);
+    // when
+    await doCommand.run?.(mockContext as never);
 
+    // then
     expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining("✓ Completed 1 task(s):")
+      expect.stringContaining("Completed 1 task(s):")
     );
     expect(consoleSpy).toHaveBeenCalledWith(
       expect.stringContaining("Buy groceries")
@@ -154,13 +183,15 @@ describe("do command", () => {
   });
 
   it("handles invalid short ID", async () => {
+    // given
     const consoleErrorSpy = spyOn(console, "error");
     const mockContext = {
       args: { ids: "999" },
     };
 
+    // when/then
     try {
-      await doCommand.run?.(mockContext as any);
+      await doCommand.run?.(mockContext as never);
       throw new Error("Expected ExitError");
     } catch (error) {
       if (!(error instanceof ExitError)) {
@@ -174,6 +205,7 @@ describe("do command", () => {
   });
 
   it("handles ambiguous UUID", async () => {
+    // given
     const consoleErrorSpy = spyOn(console, "error");
     const contextWithDuplicates = {
       tasks: [
@@ -188,8 +220,9 @@ describe("do command", () => {
       args: { ids: "abc123" },
     };
 
+    // when/then
     try {
-      await doCommand.run?.(mockContext as any);
+      await doCommand.run?.(mockContext as never);
       throw new Error("Expected ExitError");
     } catch (error) {
       if (!(error instanceof ExitError)) {
@@ -203,6 +236,7 @@ describe("do command", () => {
   });
 
   it("handles missing context file", async () => {
+    // given
     rmSync(testContextFile);
     const consoleErrorSpy = spyOn(console, "error");
 
@@ -210,8 +244,9 @@ describe("do command", () => {
       args: { ids: "1" },
     };
 
+    // when/then
     try {
-      await doCommand.run?.(mockContext as any);
+      await doCommand.run?.(mockContext as never);
       throw new Error("Expected ExitError");
     } catch (error) {
       if (!(error instanceof ExitError)) {
@@ -225,6 +260,7 @@ describe("do command", () => {
   });
 
   it("handles API error", async () => {
+    // given
     const consoleErrorSpy = spyOn(console, "error");
     const fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(
@@ -241,8 +277,9 @@ describe("do command", () => {
       args: { ids: "1" },
     };
 
+    // when/then
     try {
-      await doCommand.run?.(mockContext as any);
+      await doCommand.run?.(mockContext as never);
       throw new Error("Expected ExitError");
     } catch (error) {
       if (!(error instanceof ExitError)) {
@@ -257,6 +294,7 @@ describe("do command", () => {
   });
 
   it("handles network error", async () => {
+    // given
     const consoleErrorSpy = spyOn(console, "error");
     const fetchSpy = spyOn(globalThis, "fetch").mockRejectedValue(
       new Error("Network error")
@@ -266,8 +304,9 @@ describe("do command", () => {
       args: { ids: "1" },
     };
 
+    // when/then
     try {
-      await doCommand.run?.(mockContext as any);
+      await doCommand.run?.(mockContext as never);
       throw new Error("Expected ExitError");
     } catch (error) {
       if (!(error instanceof ExitError)) {
@@ -282,6 +321,7 @@ describe("do command", () => {
   });
 
   it("sends correct payload to API", async () => {
+    // given
     const fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -297,8 +337,10 @@ describe("do command", () => {
       args: { ids: "1" },
     };
 
-    await doCommand.run?.(mockContext as any);
+    // when
+    await doCommand.run?.(mockContext as never);
 
+    // then
     const callArgs = fetchSpy.mock.calls[0];
     if (!callArgs || !callArgs[1]) {
       throw new Error("fetch was not called");
@@ -314,6 +356,7 @@ describe("do command", () => {
   });
 
   it("completes multiple tasks with mixed short IDs and UUIDs", async () => {
+    // given
     const consoleSpy = spyOn(console, "log");
     const fetchSpy = spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(
@@ -343,10 +386,12 @@ describe("do command", () => {
       args: { ids: ["1", "pqr345"] },
     };
 
-    await doCommand.run?.(mockContext as any);
+    // when
+    await doCommand.run?.(mockContext as never);
 
+    // then
     expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining("✓ Completed 2 task(s):")
+      expect.stringContaining("Completed 2 task(s):")
     );
     expect(fetchSpy).toHaveBeenCalled();
   });

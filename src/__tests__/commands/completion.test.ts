@@ -1,4 +1,4 @@
-/// <reference types="bun:test" />
+/// <reference types="bun" />
 import { describe, it, expect, spyOn, afterEach } from "bun:test";
 import { completionCommand } from "../../commands/completion";
 
@@ -22,7 +22,7 @@ describe("completion command", () => {
     await completionCommand.run?.(context);
 
     // then
-    const output = consoleLogSpy.mock.calls.map((c) => c[0]).join("\n");
+    const output = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join("\n");
     expect(output).toContain("#!/bin/bash");
     expect(output).toContain("_af_completion");
   });
@@ -36,7 +36,7 @@ describe("completion command", () => {
     await completionCommand.run?.(context);
 
     // then
-    const output = consoleLogSpy.mock.calls.map((c) => c[0]).join("\n");
+    const output = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join("\n");
     expect(output).toContain("#compdef af");
     expect(output).toContain("_af()");
   });
@@ -50,7 +50,7 @@ describe("completion command", () => {
     await completionCommand.run?.(context);
 
     // then
-    const output = consoleLogSpy.mock.calls.map((c) => c[0]).join("\n");
+    const output = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join("\n");
     expect(output).toContain("# Fish completion for af");
     expect(output).toContain("complete -c af");
   });
@@ -64,7 +64,7 @@ describe("completion command", () => {
     await completionCommand.run?.(context);
 
     // then
-    const output = consoleLogSpy.mock.calls.map((c) => c[0]).join("\n");
+    const output = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join("\n");
     expect(output).toContain("add");
     expect(output).toContain("ls");
     expect(output).toContain("task");
@@ -80,7 +80,7 @@ describe("completion command", () => {
     await completionCommand.run?.(context);
 
     // then
-    const output = consoleLogSpy.mock.calls.map((c) => c[0]).join("\n");
+    const output = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join("\n");
     expect(output).toContain("edit");
     expect(output).toContain("move");
     expect(output).toContain("plan");
@@ -95,7 +95,7 @@ describe("completion command", () => {
     await completionCommand.run?.(context);
 
     // then
-    const output = consoleLogSpy.mock.calls.map((c) => c[0]).join("\n");
+    const output = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join("\n");
     expect(output).toContain("__fish_seen_subcommand_from project");
   });
 
@@ -108,7 +108,7 @@ describe("completion command", () => {
     await completionCommand.run?.(context);
 
     // then
-    const output = consoleLogSpy.mock.calls.map((c) => c[0]).join("\n");
+    const output = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join("\n");
     expect(output).toContain("--today");
     expect(output).toContain("--date");
   });
@@ -122,7 +122,7 @@ describe("completion command", () => {
     await completionCommand.run?.(context);
 
     // then
-    const output = consoleLogSpy.mock.calls.map((c) => c[0]).join("\n");
+    const output = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join("\n");
     expect(output).toContain("--inbox");
     expect(output).toContain("--all");
   });
@@ -142,7 +142,7 @@ describe("completion command", () => {
 
     // then
     expect(consoleErrorSpy).toHaveBeenCalled();
-    const errorMsg = consoleErrorSpy.mock.calls.map((c) => c[0]).join("\n");
+    const errorMsg = consoleErrorSpy.mock.calls.map((c: unknown[]) => c[0]).join("\n");
     expect(errorMsg).toContain("Unknown shell");
   });
 
@@ -155,7 +155,7 @@ describe("completion command", () => {
     await completionCommand.run?.(context);
 
     // then
-    const output = consoleLogSpy.mock.calls.map((c) => c[0]).join("\n");
+    const output = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join("\n");
     expect(output).toContain("#!/bin/bash");
   });
 
@@ -168,7 +168,7 @@ describe("completion command", () => {
     await completionCommand.run?.(context);
 
     // then
-    const output = consoleLogSpy.mock.calls.map((c) => c[0]).join("\n");
+    const output = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join("\n");
     expect(output).toContain("Installation:");
     expect(output).toContain("~/.bashrc");
   });
@@ -182,7 +182,7 @@ describe("completion command", () => {
     await completionCommand.run?.(context);
 
     // then
-    const output = consoleLogSpy.mock.calls.map((c) => c[0]).join("\n");
+    const output = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join("\n");
     expect(output).toContain("Installation:");
     expect(output).toContain("~/.zsh/completions/_af");
   });
@@ -196,7 +196,7 @@ describe("completion command", () => {
     await completionCommand.run?.(context);
 
     // then
-    const output = consoleLogSpy.mock.calls.map((c) => c[0]).join("\n");
+    const output = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join("\n");
     expect(output).toContain("Installation:");
     expect(output).toContain("/usr/local/share/fish/vendor_completions.d/af.fish");
   });

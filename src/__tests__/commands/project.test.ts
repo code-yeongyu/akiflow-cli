@@ -2,10 +2,19 @@
 import { describe, it, expect } from "bun:test";
 import { projectCommand } from "../../commands/project";
 
+// Resolve citty's Resolvable<T> wrapper for synchronous test assertions
+type ResolvedSubCommand = {
+  meta: { name: string; description?: string };
+  args?: Record<string, { type: string }>;
+};
+
+const getSubCommands = () =>
+  projectCommand.subCommands as unknown as Record<string, ResolvedSubCommand> | undefined;
+
 describe("project command", () => {
   it("has ls subcommand", () => {
     // given
-    const subCommands = projectCommand.subCommands as never;
+    const subCommands = getSubCommands();
 
     // when
     const lsCommand = subCommands?.ls;
@@ -17,7 +26,7 @@ describe("project command", () => {
 
   it("has create subcommand", () => {
     // given
-    const subCommands = projectCommand.subCommands;
+    const subCommands = getSubCommands();
 
     // when
     const createCommand = subCommands?.create;
@@ -29,7 +38,7 @@ describe("project command", () => {
 
   it("has delete subcommand", () => {
     // given
-    const subCommands = projectCommand.subCommands;
+    const subCommands = getSubCommands();
 
     // when
     const deleteCommand = subCommands?.delete;
@@ -41,7 +50,7 @@ describe("project command", () => {
 
   it("project command has correct metadata", () => {
     // given
-    const meta = projectCommand.meta;
+    const meta = projectCommand.meta as { name: string; description: string };
 
     // when
     const name = meta.name;
@@ -54,7 +63,7 @@ describe("project command", () => {
 
   it("create subcommand has color argument", () => {
     // given
-    const createCommand = projectCommand.subCommands?.create;
+    const createCommand = getSubCommands()?.create;
 
     // when
     const args = createCommand?.args;
@@ -62,12 +71,12 @@ describe("project command", () => {
     // then
     expect(args).toBeDefined();
     expect(args?.color).toBeDefined();
-    expect(args?.color.type).toBe("string");
+    expect(args?.color?.type).toBe("string");
   });
 
   it("delete subcommand has name argument", () => {
     // given
-    const deleteCommand = projectCommand.subCommands?.delete;
+    const deleteCommand = getSubCommands()?.delete;
 
     // when
     const args = deleteCommand?.args;
@@ -75,12 +84,12 @@ describe("project command", () => {
     // then
     expect(args).toBeDefined();
     expect(args?.name).toBeDefined();
-    expect(args?.name.type).toBe("string");
+    expect(args?.name?.type).toBe("string");
   });
 
   it("ls subcommand has no required arguments", () => {
     // given
-    const lsCommand = projectCommand.subCommands?.ls;
+    const lsCommand = getSubCommands()?.ls;
 
     // when
     const args = lsCommand?.args;

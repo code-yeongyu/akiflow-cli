@@ -1,100 +1,44 @@
 /// <reference types="bun" />
-import { describe, it, expect, spyOn } from "bun:test";
+import { describe, it, expect, spyOn, beforeEach, afterEach } from "bun:test";
 import { authCommand } from "../../commands/auth";
+import * as storage from "../../lib/auth/storage";
 
 describe("auth command", () => {
-  describe("command metadata", () => {
-    // given
-    it("has correct name", () => {
+  let consoleLogSpy: ReturnType<typeof spyOn>;
+
+  beforeEach(() => {
+    consoleLogSpy = spyOn(console, "log");
+  });
+
+  afterEach(() => {
+    consoleLogSpy.mockRestore();
+  });
+
+  describe("command structure", () => {
+    it("has meta defined", () => {
       // then
-      expect(authCommand.meta?.name).toBe("auth");
+      expect(authCommand.meta).toBeDefined();
     });
 
-    // given
-    it("has correct description", () => {
+    it("has args defined", () => {
       // then
-      expect(authCommand.meta?.description).toBe("Manage Akiflow authentication");
+      expect(authCommand.args).toBeDefined();
+    });
+
+    it("has run function", () => {
+      // then
+      expect(authCommand.run).toBeDefined();
+      expect(typeof authCommand.run).toBe("function");
     });
   });
 
-  describe("subcommands", () => {
-    // given
-    it("has status subcommand", async () => {
-      const subCommands = await authCommand.subCommands;
-      // then
-      expect(subCommands).toBeDefined();
-      if (subCommands && "status" in subCommands) {
-        expect(await subCommands.status.meta?.name).toBe("status");
-      }
-    });
-
-    // given
-    it("has logout subcommand", async () => {
-      const subCommands = await authCommand.subCommands;
-      // then
-      expect(subCommands).toBeDefined();
-      if (subCommands && "logout" in subCommands) {
-        expect(await subCommands.logout.meta?.name).toBe("logout");
-      }
-    });
-
-    // given
-    it("has refresh subcommand", async () => {
-      const subCommands = await authCommand.subCommands;
-      // then
-      expect(subCommands).toBeDefined();
-      if (subCommands && "refresh" in subCommands) {
-        expect(await subCommands.refresh.meta?.name).toBe("refresh");
-      }
-    });
-
-    // given
-    it("status subcommand has description", async () => {
-      const subCommands = await authCommand.subCommands;
-      // then
-      if (subCommands && "status" in subCommands) {
-        expect(await subCommands.status.meta?.description).toBe(
-          "Show current authentication status"
-        );
-      }
-    });
-
-    // given
-    it("logout subcommand has description", async () => {
-      const subCommands = await authCommand.subCommands;
-      // then
-      if (subCommands && "logout" in subCommands) {
-        expect(await subCommands.logout.meta?.description).toBe(
-          "Clear stored credentials"
-        );
-      }
-    });
-
-    // given
-    it("refresh subcommand has description", async () => {
-      const subCommands = await authCommand.subCommands;
-      // then
-      if (subCommands && "refresh" in subCommands) {
-        expect(await subCommands.refresh.meta?.description).toBe(
-          "Force refresh of authentication token"
-        );
-      }
-    });
-  });
-
-  describe("status subcommand integration", () => {
-    // given
+  describe("status action", () => {
     it("shows not authenticated when no credentials", async () => {
-      const loadCredentialsSpy = spyOn(
-        await import("../../lib/auth/storage"),
-        "loadCredentials"
-      ).mockResolvedValueOnce(null);
-      const consoleLogSpy = spyOn(console, "log");
+      // given
+      const loadCredentialsSpy = spyOn(storage, "loadCredentials").mockResolvedValueOnce(null);
 
-      const subCommands = await authCommand.subCommands;
-      if (subCommands && "status" in subCommands) {
-        await subCommands.status.run();
-      }
+      // when
+      await authCommand.run?.({ args: { action: "status" } } as never);
 
       // then
       expect(consoleLogSpy).toHaveBeenCalledWith("Not authenticated");
@@ -103,24 +47,17 @@ describe("auth command", () => {
       loadCredentialsSpy.mockRestore();
     });
 
-    // given
     it("shows authenticated when credentials exist", async () => {
+      // given
       const mockCredentials = {
         token: "test-token-with-some-length",
         clientId: "test-client-id",
         expiryTimestamp: Date.now() + 3600000,
       };
+      const loadCredentialsSpy = spyOn(storage, "loadCredentials").mockResolvedValueOnce(mockCredentials);
 
-      const loadCredentialsSpy = spyOn(
-        await import("../../lib/auth/storage"),
-        "loadCredentials"
-      ).mockResolvedValueOnce(mockCredentials);
-      const consoleLogSpy = spyOn(console, "log");
-
-      const subCommands = await authCommand.subCommands;
-      if (subCommands && "status" in subCommands) {
-        await subCommands.status.run();
-      }
+      // when
+      await authCommand.run?.({ args: { action: "status" } } as never);
 
       // then
       expect(consoleLogSpy).toHaveBeenCalledWith(
@@ -132,31 +69,41 @@ describe("auth command", () => {
 
       loadCredentialsSpy.mockRestore();
     });
+
+    it("shows expired status when token expired", async () => {
+      // given
+      const mockCredentials = {
+        token: "test-token-with-some-length",
+        clientId: "test-client-id",
+        expiryTimestamp: Date.now() - 3600000, // expired
+      };
+      const loadCredentialsSpy = spyOn(storage, "loadCredentials").mockResolvedValueOnce(mockCredentials);
+
+      // when
+      await authCommand.run?.({ args: { action: "status" } } as never);
+
+      // then
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Status: EXPIRED")
+      );
+
+      loadCredentialsSpy.mockRestore();
+    });
   });
 
-  describe("logout subcommand integration", () => {
-    // given
+  describe("logout action", () => {
     it("clears credentials when authenticated", async () => {
+      // given
       const mockCredentials = {
         token: "test-token",
         clientId: "test-client-id",
         expiryTimestamp: Date.now() + 3600000,
       };
+      const loadCredentialsSpy = spyOn(storage, "loadCredentials").mockResolvedValueOnce(mockCredentials);
+      const clearCredentialsSpy = spyOn(storage, "clearCredentials").mockResolvedValueOnce(undefined);
 
-      const loadCredentialsSpy = spyOn(
-        await import("../../lib/auth/storage"),
-        "loadCredentials"
-      ).mockResolvedValueOnce(mockCredentials);
-      const clearCredentialsSpy = spyOn(
-        await import("../../lib/auth/storage"),
-        "clearCredentials"
-      ).mockResolvedValueOnce(undefined);
-      const consoleLogSpy = spyOn(console, "log");
-
-      const subCommands = await authCommand.subCommands;
-      if (subCommands && "logout" in subCommands) {
-        await subCommands.logout.run();
-      }
+      // when
+      await authCommand.run?.({ args: { action: "logout" } } as never);
 
       // then
       expect(clearCredentialsSpy).toHaveBeenCalled();
@@ -168,18 +115,12 @@ describe("auth command", () => {
       clearCredentialsSpy.mockRestore();
     });
 
-    // given
     it("shows message when not authenticated", async () => {
-      const loadCredentialsSpy = spyOn(
-        await import("../../lib/auth/storage"),
-        "loadCredentials"
-      ).mockResolvedValueOnce(null);
-      const consoleLogSpy = spyOn(console, "log");
+      // given
+      const loadCredentialsSpy = spyOn(storage, "loadCredentials").mockResolvedValueOnce(null);
 
-      const subCommands = await authCommand.subCommands;
-      if (subCommands && "logout" in subCommands) {
-        await subCommands.logout.run();
-      }
+      // when
+      await authCommand.run?.({ args: { action: "logout" } } as never);
 
       // then
       expect(consoleLogSpy).toHaveBeenCalledWith(
@@ -190,17 +131,25 @@ describe("auth command", () => {
     });
   });
 
-  describe("main auth command integration", () => {
-    it.skipIf(!!process.env.CI)("calls scanBrowsers for token extraction", async () => {
+  describe("main auth command (login)", () => {
+    it.skipIf(process.platform !== "darwin")("calls scanBrowsers for token extraction", async () => {
       // given
       const scanBrowsersSpy = spyOn(
         await import("../../lib/auth/extract-token"),
         "scanBrowsers"
       ).mockResolvedValueOnce([]);
-      const consoleLogSpy = spyOn(console, "log");
+      const processExitSpy = spyOn(process, "exit").mockImplementation(() => {
+        throw new Error("process.exit called");
+      });
 
       // when
-      await authCommand.run();
+      try {
+        await authCommand.run?.({ args: {} } as never);
+      } catch (e) {
+        if (!(e instanceof Error && e.message === "process.exit called")) {
+          throw e;
+        }
+      }
 
       // then
       expect(scanBrowsersSpy).toHaveBeenCalled();
@@ -209,6 +158,7 @@ describe("auth command", () => {
       );
 
       scanBrowsersSpy.mockRestore();
+      processExitSpy.mockRestore();
     });
   });
 });

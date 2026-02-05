@@ -77,7 +77,7 @@ describe("cal command", () => {
     const consoleLogSpy = spyOn(console, "log");
 
     // when
-    await cal.run({
+    await cal.run?.({
       args: { free: false, _: [] } as never,
       rawArgs: [],
     } as never);
@@ -108,7 +108,7 @@ describe("cal command", () => {
     const consoleLogSpy = spyOn(console, "log");
 
     // when
-    await cal.run({
+    await cal.run?.({
       args: { free: true, _: [] } as never,
       rawArgs: [],
     } as never);
@@ -134,7 +134,7 @@ describe("cal command", () => {
     const consoleLogSpy = spyOn(console, "log");
 
     // when
-    await cal.run({
+    await cal.run?.({
       args: { free: false, _: [] } as never,
       rawArgs: [],
     } as never);
@@ -187,7 +187,7 @@ describe("cal command", () => {
     const consoleLogSpy = spyOn(console, "log");
 
     // when
-    await cal.run({
+    await cal.run?.({
       args: { free: true, _: [] } as never,
       rawArgs: [],
     } as never);
@@ -215,7 +215,7 @@ describe("cal command", () => {
 
     // when
     try {
-      await cal.run({
+      await cal.run?.({
         args: { free: false, _: [] } as never,
         rawArgs: [],
       } as never);
@@ -247,7 +247,7 @@ describe("cal command", () => {
 
     // when
     try {
-      await cal.run({
+      await cal.run?.({
         args: { free: false, _: [] } as never,
         rawArgs: [],
       } as never);

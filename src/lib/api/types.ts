@@ -91,6 +91,7 @@ export interface CreateTaskPayload {
   links?: string[];
   content?: Record<string, unknown>;
   calendar_id?: string;
+  status?: TaskStatus;
   recurrence?: string;
 }
 

@@ -1,114 +1,281 @@
-import { describe, it, expect } from "bun:test";
-import { parseDuration } from "../../lib/duration-parser";
+import { describe, it, expect, spyOn, beforeEach, afterEach } from "bun:test";
+import { taskPlanCommand } from "../../commands/task/index";
+import * as storage from "../../lib/auth/storage";
+import * as fs from "node:fs";
 
-describe("parseDuration", () => {
-  it("parses minutes", () => {
-    // given
-    const duration = "5m";
+const mockCredentials = {
+  token: "test-jwt-token",
+  clientId: "test-client-id-12345",
+  expiryTimestamp: Date.now() + 86400000,
+};
 
-    // when
-    const result = parseDuration(duration);
+const mockContextFile = {
+  tasks: [
+    { shortId: 1, id: "task-uuid-1", title: "Task 1" },
+    { shortId: 2, id: "task-uuid-2", title: "Task 2" },
+  ],
+  timestamp: Date.now(),
+};
 
-    // then
-    expect(result).toBe(5 * 60 * 1000);
+describe("taskPlanCommand", () => {
+  let fetchSpy: ReturnType<typeof spyOn>;
+  let loadCredentialsSpy: ReturnType<typeof spyOn>;
+  let readFileSyncSpy: ReturnType<typeof spyOn>;
+
+  beforeEach(() => {
+    fetchSpy = spyOn(globalThis, "fetch");
+    loadCredentialsSpy = spyOn(storage, "loadCredentials").mockResolvedValue(mockCredentials);
+    readFileSyncSpy = spyOn(fs, "readFileSync").mockReturnValue(JSON.stringify(mockContextFile));
   });
 
-  it("parses hours", () => {
-    // given
-    const duration = "1h";
-
-    // when
-    const result = parseDuration(duration);
-
-    // then
-    expect(result).toBe(60 * 60 * 1000);
+  afterEach(() => {
+    fetchSpy.mockRestore();
+    loadCredentialsSpy.mockRestore();
+    readFileSyncSpy.mockRestore();
   });
 
-  it("parses multiple hours", () => {
+  it("schedules task with YYYY-MM-DD date format", async () => {
     // given
-    const duration = "2h";
+    fetchSpy.mockResolvedValue(
+      new Response(JSON.stringify({ success: true, message: null, data: [] }), { status: 200 })
+    );
+    const consoleLogSpy = spyOn(console, "log");
 
     // when
-    const result = parseDuration(duration);
+    await taskPlanCommand.run({
+      args: { id: "task-uuid-1", date: "2026-02-10", at: undefined, _: [] },
+      rawArgs: [],
+    } as any);
 
     // then
-    expect(result).toBe(2 * 60 * 60 * 1000);
+    expect(fetchSpy).toHaveBeenCalled();
+    const fetchCall = fetchSpy.mock.calls[0];
+    const requestBody = JSON.parse(fetchCall[1]?.body as string);
+    expect(requestBody[0].date).toBe("2026-02-10");
+    expect(requestBody[0].datetime).toBeUndefined();
+    expect(requestBody[0].datetime_tz).toBeUndefined();
+    expect(consoleLogSpy).toHaveBeenCalledWith('✓ Scheduled task "task-uuid-1" for 2026-02-10');
+
+    consoleLogSpy.mockRestore();
   });
 
-  it("parses days", () => {
+  it("schedules task with natural language date 'today'", async () => {
     // given
-    const duration = "1d";
+    const today = new Date();
+    const expectedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
+    fetchSpy.mockResolvedValue(
+      new Response(JSON.stringify({ success: true, message: null, data: [] }), { status: 200 })
+    );
+    const consoleLogSpy = spyOn(console, "log");
 
     // when
-    const result = parseDuration(duration);
+    await taskPlanCommand.run({
+      args: { id: "task-uuid-1", date: "today", at: undefined, _: [] },
+      rawArgs: [],
+    } as any);
 
     // then
-    expect(result).toBe(24 * 60 * 60 * 1000);
+    const fetchCall = fetchSpy.mock.calls[0];
+    const requestBody = JSON.parse(fetchCall[1]?.body as string);
+    expect(requestBody[0].date).toBe(expectedDate);
+    expect(consoleLogSpy).toHaveBeenCalledWith(`✓ Scheduled task "task-uuid-1" for ${expectedDate}`);
+
+    consoleLogSpy.mockRestore();
   });
 
-  it("parses multiple days", () => {
+  it("schedules task with natural language date 'tomorrow'", async () => {
     // given
-    const duration = "2d";
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const expectedDate = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
+
+    fetchSpy.mockResolvedValue(
+      new Response(JSON.stringify({ success: true, message: null, data: [] }), { status: 200 })
+    );
+    const consoleLogSpy = spyOn(console, "log");
 
     // when
-    const result = parseDuration(duration);
+    await taskPlanCommand.run({
+      args: { id: "task-uuid-1", date: "tomorrow", at: undefined, _: [] },
+      rawArgs: [],
+    } as any);
 
     // then
-    expect(result).toBe(2 * 24 * 60 * 60 * 1000);
+    const fetchCall = fetchSpy.mock.calls[0];
+    const requestBody = JSON.parse(fetchCall[1]?.body as string);
+    expect(requestBody[0].date).toBe(expectedDate);
+    expect(consoleLogSpy).toHaveBeenCalledWith(`✓ Scheduled task "task-uuid-1" for ${expectedDate}`);
+
+    consoleLogSpy.mockRestore();
   });
 
-  it("parses weeks", () => {
+  it("schedules task with date and time", async () => {
     // given
-    const duration = "1w";
+    fetchSpy.mockResolvedValue(
+      new Response(JSON.stringify({ success: true, message: null, data: [] }), { status: 200 })
+    );
+    const consoleLogSpy = spyOn(console, "log");
 
     // when
-    const result = parseDuration(duration);
+    await taskPlanCommand.run({
+      args: { id: "task-uuid-1", date: "2026-02-10", at: "21:00", _: [] },
+      rawArgs: [],
+    } as any);
 
     // then
-    expect(result).toBe(7 * 24 * 60 * 60 * 1000);
+    const fetchCall = fetchSpy.mock.calls[0];
+    const requestBody = JSON.parse(fetchCall[1]?.body as string);
+    expect(requestBody[0].date).toBe("2026-02-10");
+    expect(requestBody[0].datetime).toBeTruthy();
+    expect(requestBody[0].datetime_tz).toBeTruthy();
+    expect(consoleLogSpy).toHaveBeenCalledWith('✓ Scheduled task "task-uuid-1" for 2026-02-10 at 21:00');
+
+    consoleLogSpy.mockRestore();
   });
 
-  it("handles whitespace", () => {
+  it("schedules task with 'today' and time", async () => {
     // given
-    const duration = " 1h ";
+    const today = new Date();
+    const expectedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
+    fetchSpy.mockResolvedValue(
+      new Response(JSON.stringify({ success: true, message: null, data: [] }), { status: 200 })
+    );
+    const consoleLogSpy = spyOn(console, "log");
 
     // when
-    const result = parseDuration(duration);
+    await taskPlanCommand.run({
+      args: { id: "task-uuid-1", date: "today", at: "14:30", _: [] },
+      rawArgs: [],
+    } as any);
 
     // then
-    expect(result).toBe(60 * 60 * 1000);
+    const fetchCall = fetchSpy.mock.calls[0];
+    const requestBody = JSON.parse(fetchCall[1]?.body as string);
+    expect(requestBody[0].date).toBe(expectedDate);
+    expect(requestBody[0].datetime).toBeTruthy();
+    expect(requestBody[0].datetime_tz).toBeTruthy();
+    expect(consoleLogSpy).toHaveBeenCalledWith(`✓ Scheduled task "task-uuid-1" for ${expectedDate} at 14:30`);
+
+    consoleLogSpy.mockRestore();
   });
 
-  it("throws for invalid format", () => {
+  it("schedules task with 'tomorrow' and time", async () => {
     // given
-    const duration = "invalid";
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const expectedDate = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
+
+    fetchSpy.mockResolvedValue(
+      new Response(JSON.stringify({ success: true, message: null, data: [] }), { status: 200 })
+    );
+    const consoleLogSpy = spyOn(console, "log");
 
     // when
-    const act = () => parseDuration(duration);
+    await taskPlanCommand.run({
+      args: { id: "task-uuid-1", date: "tomorrow", at: "09:00", _: [] },
+      rawArgs: [],
+    } as any);
 
     // then
-    expect(act).toThrow('Invalid duration format: "invalid"');
+    const fetchCall = fetchSpy.mock.calls[0];
+    const requestBody = JSON.parse(fetchCall[1]?.body as string);
+    expect(requestBody[0].date).toBe(expectedDate);
+    expect(requestBody[0].datetime).toBeTruthy();
+    expect(requestBody[0].datetime_tz).toBeTruthy();
+    expect(consoleLogSpy).toHaveBeenCalledWith(`✓ Scheduled task "task-uuid-1" for ${expectedDate} at 09:00`);
+
+    consoleLogSpy.mockRestore();
   });
 
-  it("throws for missing number", () => {
+  it("defaults to today when only --at is specified", async () => {
     // given
-    const duration = "h";
+    const today = new Date();
+    const expectedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
+    fetchSpy.mockResolvedValue(
+      new Response(JSON.stringify({ success: true, message: null, data: [] }), { status: 200 })
+    );
+    const consoleLogSpy = spyOn(console, "log");
 
     // when
-    const act = () => parseDuration(duration);
+    await taskPlanCommand.run({
+      args: { id: "task-uuid-1", date: undefined, at: "16:30", _: [] },
+      rawArgs: [],
+    } as any);
 
     // then
-    expect(act).toThrow('Invalid duration format: "h"');
+    const fetchCall = fetchSpy.mock.calls[0];
+    const requestBody = JSON.parse(fetchCall[1]?.body as string);
+    expect(requestBody[0].date).toBe(expectedDate);
+    expect(requestBody[0].datetime).toBeTruthy();
+    expect(requestBody[0].datetime_tz).toBeTruthy();
+    expect(consoleLogSpy).toHaveBeenCalledWith(`✓ Scheduled task "task-uuid-1" for ${expectedDate} at 16:30`);
+
+    consoleLogSpy.mockRestore();
   });
 
-  it("throws for invalid unit", () => {
+  it("exits with error for invalid date format", async () => {
     // given
-    const duration = "1x";
+    const consoleErrorSpy = spyOn(console, "error");
+    const processExitSpy = spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("process.exit");
+    });
 
-    // when
-    const act = () => parseDuration(duration);
+    // when/then
+    await expect(
+      taskPlanCommand.run({
+        args: { id: "task-uuid-1", date: "invalid-date", at: undefined, _: [] },
+        rawArgs: [],
+      } as any)
+    ).rejects.toThrow();
 
-    // then
-    expect(act).toThrow('Invalid duration format: "1x"');
+    expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining("Invalid date format"));
+
+    consoleErrorSpy.mockRestore();
+    processExitSpy.mockRestore();
+  });
+
+  it("exits with error for invalid time format", async () => {
+    // given
+    const consoleErrorSpy = spyOn(console, "error");
+    const processExitSpy = spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("process.exit");
+    });
+
+    // when/then
+    await expect(
+      taskPlanCommand.run({
+        args: { id: "task-uuid-1", date: "2026-02-10", at: "invalid", _: [] },
+        rawArgs: [],
+      } as any)
+    ).rejects.toThrow();
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining("Invalid time format"));
+
+    consoleErrorSpy.mockRestore();
+    processExitSpy.mockRestore();
+  });
+
+  it("exits with error when neither date nor at is specified", async () => {
+    // given
+    const consoleErrorSpy = spyOn(console, "error");
+    const processExitSpy = spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("process.exit");
+    });
+
+    // when/then
+    await expect(
+      taskPlanCommand.run({
+        args: { id: "task-uuid-1", date: undefined, at: undefined, _: [] },
+        rawArgs: [],
+      } as any)
+    ).rejects.toThrow();
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith("Error: Either --date or --at must be specified.");
+
+    consoleErrorSpy.mockRestore();
+    processExitSpy.mockRestore();
   });
 });

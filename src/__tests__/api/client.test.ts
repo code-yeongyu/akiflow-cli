@@ -163,7 +163,7 @@ describe("AkiflowClient", () => {
   });
 
   describe("getAllTasks", () => {
-    it("paginates using sync_token (not offset)", async () => {
+    it("paginates using sync_token cursor", async () => {
       // given
       const page1 = {
         ...mockTaskResponse,
@@ -174,7 +174,7 @@ describe("AkiflowClient", () => {
             title: "Page 1 Task",
           },
         ],
-        sync_token: "token-page-1",
+        sync_token: "token-1",
         has_next_page: true,
       };
 
@@ -187,7 +187,7 @@ describe("AkiflowClient", () => {
             title: "Page 2 Task",
           },
         ],
-        sync_token: "token-page-2",
+        sync_token: "token-2",
         has_next_page: false,
       };
 
@@ -214,10 +214,9 @@ describe("AkiflowClient", () => {
         expect.any(Object)
       );
 
-      // Second call must use sync_token cursor from page1
       expect(fetchSpy).toHaveBeenNthCalledWith(
         2,
-        "https://api.akiflow.com/v5/tasks?limit=2500&sync_token=token-page-1",
+        "https://api.akiflow.com/v5/tasks?limit=2500&sync_token=token-1",
         expect.any(Object)
       );
     });

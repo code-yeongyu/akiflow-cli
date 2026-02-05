@@ -1,9 +1,22 @@
 /// <reference types="bun" />
-import { describe, it, expect, spyOn } from "bun:test";
+import { describe, it, expect, spyOn, beforeEach, afterEach } from "bun:test";
 import { AkiflowClient } from "../../lib/api/client";
 import { lsCommand, getTaskDisplayTitle } from "../../commands/ls";
 import type { Task } from "../../lib/api/types";
 import * as fs from "node:fs/promises";
+
+let readFileMock: ReturnType<typeof spyOn> | null = null;
+
+beforeEach(() => {
+  // Prevent tests from reading the real ~/.cache/af tasks cache
+  // (which can make tests non-deterministic and hit the real API).
+  readFileMock = spyOn(fs, "readFile").mockRejectedValue(new Error("no cache"));
+});
+
+afterEach(() => {
+  readFileMock?.mockRestore();
+  readFileMock = null;
+});
 
 const today = new Date();
 const todayDateString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
@@ -865,6 +878,328 @@ describe("getTaskDisplayTitle", () => {
 
     // then
     expect(result).toBe("Description fallback");
+  });
+});
+
+describe("ls command search functionality", () => {
+  const searchTasks: Task[] = [
+    {
+      id: "search-task-1",
+      user_id: 1,
+      recurring_id: null,
+      title: "연말정산 서류 준비",
+      description: null,
+      date: todayDateString,
+      datetime: null,
+      datetime_tz: null,
+      original_date: null,
+      original_datetime: null,
+      duration: null,
+      recurrence: null,
+      recurrence_version: null,
+      status: 0,
+      priority: 1,
+      dailyGoal: null,
+      done: false,
+      done_at: null,
+      read_at: null,
+      listId: null,
+      section_id: null,
+      tags_ids: [],
+      sorting: 0,
+      sorting_label: null,
+      origin: null,
+      due_date: null,
+      connector_id: null,
+      origin_id: null,
+      origin_account_id: null,
+      akiflow_account_id: null,
+      doc: {},
+      calendar_id: null,
+      time_slot_id: null,
+      links: [],
+      content: {},
+      trashed_at: null,
+      plan_unit: null,
+      plan_period: null,
+      global_list_id_updated_at: null,
+      global_tags_ids_updated_at: null,
+      global_created_at: "2024-01-01T00:00:00Z",
+      global_updated_at: "2024-01-01T00:00:00Z",
+      data: {},
+      deleted_at: null,
+    },
+    {
+      id: "search-task-2",
+      user_id: 1,
+      recurring_id: null,
+      title: "Complete project",
+      description: "연말정산 관련 프로젝트",
+      date: todayDateString,
+      datetime: null,
+      datetime_tz: null,
+      original_date: null,
+      original_datetime: null,
+      duration: null,
+      recurrence: null,
+      recurrence_version: null,
+      status: 0,
+      priority: 1,
+      dailyGoal: null,
+      done: true,
+      done_at: "2024-01-01T10:00:00Z",
+      read_at: null,
+      listId: null,
+      section_id: null,
+      tags_ids: [],
+      sorting: 1,
+      sorting_label: null,
+      origin: null,
+      due_date: null,
+      connector_id: null,
+      origin_id: null,
+      origin_account_id: null,
+      akiflow_account_id: null,
+      doc: {},
+      calendar_id: null,
+      time_slot_id: null,
+      links: [],
+      content: {},
+      trashed_at: null,
+      plan_unit: null,
+      plan_period: null,
+      global_list_id_updated_at: null,
+      global_tags_ids_updated_at: null,
+      global_created_at: "2024-01-01T00:00:00Z",
+      global_updated_at: "2024-01-01T00:00:00Z",
+      data: {},
+      deleted_at: null,
+    },
+    {
+      id: "search-task-3",
+      user_id: 1,
+      recurring_id: null,
+      title: null,
+      description: null,
+      date: tomorrowDateString,
+      datetime: null,
+      datetime_tz: null,
+      original_date: null,
+      original_datetime: null,
+      duration: null,
+      recurrence: null,
+      recurrence_version: null,
+      status: 0,
+      priority: 1,
+      dailyGoal: null,
+      done: false,
+      done_at: null,
+      read_at: null,
+      listId: null,
+      section_id: null,
+      tags_ids: [],
+      sorting: 2,
+      sorting_label: null,
+      origin: null,
+      due_date: null,
+      connector_id: "slack",
+      origin_id: null,
+      origin_account_id: null,
+      akiflow_account_id: null,
+      doc: { original_message: "연말정산 안내 메시지" },
+      calendar_id: null,
+      time_slot_id: null,
+      links: [],
+      content: {},
+      trashed_at: null,
+      plan_unit: null,
+      plan_period: null,
+      global_list_id_updated_at: null,
+      global_tags_ids_updated_at: null,
+      global_created_at: "2024-01-01T00:00:00Z",
+      global_updated_at: "2024-01-01T00:00:00Z",
+      data: {},
+      deleted_at: null,
+    },
+    {
+      id: "search-task-4",
+      user_id: 1,
+      recurring_id: null,
+      title: "Unrelated task",
+      description: null,
+      date: todayDateString,
+      datetime: null,
+      datetime_tz: null,
+      original_date: null,
+      original_datetime: null,
+      duration: null,
+      recurrence: null,
+      recurrence_version: null,
+      status: 0,
+      priority: 1,
+      dailyGoal: null,
+      done: false,
+      done_at: null,
+      read_at: null,
+      listId: null,
+      section_id: null,
+      tags_ids: [],
+      sorting: 3,
+      sorting_label: null,
+      origin: null,
+      due_date: null,
+      connector_id: null,
+      origin_id: null,
+      origin_account_id: null,
+      akiflow_account_id: null,
+      doc: {},
+      calendar_id: null,
+      time_slot_id: null,
+      links: [],
+      content: {},
+      trashed_at: null,
+      plan_unit: null,
+      plan_period: null,
+      global_list_id_updated_at: null,
+      global_tags_ids_updated_at: null,
+      global_created_at: "2024-01-01T00:00:00Z",
+      global_updated_at: "2024-01-01T00:00:00Z",
+      data: {},
+      deleted_at: null,
+    },
+  ];
+
+  it("searches tasks by Korean title", async () => {
+    // given
+    const getTasksMock = spyOn(
+      AkiflowClient.prototype,
+      "getTasks"
+    ).mockResolvedValue({ success: true, message: null, data: searchTasks });
+
+    const mkdirMock = spyOn(fs, "mkdir").mockResolvedValue(undefined);
+    const writeFileMock = spyOn(fs, "writeFile").mockResolvedValue(undefined);
+    const consoleLogSpy = spyOn(console, "log").mockImplementation(() => {});
+
+    // when
+    await lsCommand.run({
+      args: { inbox: false, all: false, done: false, search: "연말정산", json: false, plain: true, _task: [] },
+    } as never);
+
+    // then
+    const consoleOutput = consoleLogSpy.mock.calls[0]?.[0] as string | undefined;
+    expect(consoleOutput).toContain("연말정산 서류 준비");
+    expect(consoleOutput).toContain("Complete project");
+    expect(consoleOutput).toContain("[Slack]");
+    expect(consoleOutput).not.toContain("Unrelated task");
+
+    consoleLogSpy.mockRestore();
+    getTasksMock.mockRestore();
+    mkdirMock.mockRestore();
+    writeFileMock.mockRestore();
+  });
+
+  it("searches tasks case-insensitively", async () => {
+    // given
+    const getTasksMock = spyOn(
+      AkiflowClient.prototype,
+      "getTasks"
+    ).mockResolvedValue({ success: true, message: null, data: searchTasks });
+
+    const mkdirMock = spyOn(fs, "mkdir").mockResolvedValue(undefined);
+    const writeFileMock = spyOn(fs, "writeFile").mockResolvedValue(undefined);
+    const consoleLogSpy = spyOn(console, "log").mockImplementation(() => {});
+
+    // when
+    await lsCommand.run({
+      args: { inbox: false, all: false, done: false, search: "PROJECT", json: false, plain: true, _task: [] },
+    } as never);
+
+    // then
+    const consoleOutput = consoleLogSpy.mock.calls[0]?.[0] as string | undefined;
+    expect(consoleOutput).toContain("Complete project");
+
+    consoleLogSpy.mockRestore();
+    getTasksMock.mockRestore();
+    mkdirMock.mockRestore();
+    writeFileMock.mockRestore();
+  });
+
+  it("uses getTasks when search is provided", async () => {
+    // given
+    const getTasksMock = spyOn(
+      AkiflowClient.prototype,
+      "getTasks"
+    ).mockResolvedValue({ success: true, message: null, data: searchTasks });
+
+    const mkdirMock = spyOn(fs, "mkdir").mockResolvedValue(undefined);
+    const writeFileMock = spyOn(fs, "writeFile").mockResolvedValue(undefined);
+    const consoleLogSpy = spyOn(console, "log").mockImplementation(() => {});
+
+    // when
+    await lsCommand.run({
+      args: { inbox: false, all: false, done: false, search: "test", json: false, plain: true, _task: [] },
+    } as never);
+
+    // then
+    expect(getTasksMock).toHaveBeenCalled();
+
+    consoleLogSpy.mockRestore();
+    getTasksMock.mockRestore();
+    mkdirMock.mockRestore();
+    writeFileMock.mockRestore();
+  });
+
+  it("searches in doc.original_message content", async () => {
+    // given
+    const getTasksMock = spyOn(
+      AkiflowClient.prototype,
+      "getTasks"
+    ).mockResolvedValue({ success: true, message: null, data: searchTasks });
+
+    const mkdirMock = spyOn(fs, "mkdir").mockResolvedValue(undefined);
+    const writeFileMock = spyOn(fs, "writeFile").mockResolvedValue(undefined);
+    const consoleLogSpy = spyOn(console, "log").mockImplementation(() => {});
+
+    // when
+    await lsCommand.run({
+      args: { inbox: false, all: false, done: false, search: "안내 메시지", json: false, plain: true, _task: [] },
+    } as never);
+
+    // then
+    const consoleOutput = consoleLogSpy.mock.calls[0]?.[0] as string | undefined;
+    expect(consoleOutput).toContain("[Slack]");
+    expect(consoleOutput).toContain("연말정산 안내 메시지");
+
+    consoleLogSpy.mockRestore();
+    getTasksMock.mockRestore();
+    mkdirMock.mockRestore();
+    writeFileMock.mockRestore();
+  });
+
+  it("returns no tasks when search term not found", async () => {
+    // given
+    const getTasksMock = spyOn(
+      AkiflowClient.prototype,
+      "getTasks"
+    ).mockResolvedValue({ success: true, message: null, data: searchTasks });
+
+    const mkdirMock = spyOn(fs, "mkdir").mockResolvedValue(undefined);
+    const writeFileMock = spyOn(fs, "writeFile").mockResolvedValue(undefined);
+    const consoleLogSpy = spyOn(console, "log").mockImplementation(() => {});
+
+    // when
+    await lsCommand.run({
+      args: { inbox: false, all: false, done: false, search: "nonexistent", json: false, plain: true, _task: [] },
+    } as never);
+
+    // then
+    const consoleOutput = consoleLogSpy.mock.calls[0]?.[0] as string | undefined;
+    expect(consoleOutput).toContain("No tasks found");
+
+    consoleLogSpy.mockRestore();
+    getTasksMock.mockRestore();
+    mkdirMock.mockRestore();
+    writeFileMock.mockRestore();
   });
 });
 

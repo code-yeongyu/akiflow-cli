@@ -1,6 +1,6 @@
 import * as path from "node:path";
 import * as os from "node:os";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import * as fs from "node:fs/promises";
 import type { Task, CreateTaskPayload } from "./api/types";
 
 const CACHE_DIR = path.join(os.homedir(), ".cache", "af");
@@ -20,7 +20,7 @@ interface PendingTasksCache {
 
 async function ensureCacheDir(): Promise<void> {
   try {
-    await mkdir(CACHE_DIR, { recursive: true });
+    await fs.mkdir(CACHE_DIR, { recursive: true });
   } catch {
     // Directory might already exist
   }
@@ -28,7 +28,7 @@ async function ensureCacheDir(): Promise<void> {
 
 export async function loadPendingTasks(): Promise<Task[]> {
   try {
-    const content = await readFile(PENDING_TASKS_FILE, "utf-8");
+    const content = await fs.readFile(PENDING_TASKS_FILE, "utf-8");
     const cache: PendingTasksCache = JSON.parse(content);
     
     const now = Date.now();
@@ -50,7 +50,7 @@ export async function loadPendingTasks(): Promise<Task[]> {
 
 async function savePendingTasksCache(cache: PendingTasksCache): Promise<void> {
   await ensureCacheDir();
-  await writeFile(PENDING_TASKS_FILE, JSON.stringify(cache, null, 2));
+  await fs.writeFile(PENDING_TASKS_FILE, JSON.stringify(cache, null, 2));
 }
 
 export async function addPendingTask(task: Task): Promise<void> {

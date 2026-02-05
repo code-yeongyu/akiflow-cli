@@ -1,6 +1,7 @@
 import { defineCommand } from "citty";
 import { createClient } from "../lib/api/client";
-import type { Label, UpdateTaskPayload } from "../lib/api/types";
+import type { Label, UpdateTaskPayload, Task } from "../lib/api/types";
+import { syncTasksCache } from "../lib/tasks-local-cache";
 
 const COLOR_PALETTE: Record<string, string> = {
   red: "#FF6B6B",
@@ -33,18 +34,8 @@ function colorizeProjectColor(hexColor: string | null): string {
   return "●";
 }
 
-async function countTasksForProject(
-  client: ReturnType<typeof createClient>,
-  projectId: string
-): Promise<number> {
-  try {
-    const response = await client.getTasks({ limit: 2500 });
-    return response.data.filter(
-      (task) => task.listId === projectId && !task.deleted_at
-    ).length;
-  } catch {
-    return 0;
-  }
+function countTasksForProjectId(tasks: Task[], projectId: string): number {
+  return tasks.filter((task) => task.listId === projectId && !task.deleted_at).length;
 }
 
 const projectLsCommand = defineCommand({
@@ -67,8 +58,10 @@ const projectLsCommand = defineCommand({
       console.log("\nProjects:");
       console.log("─".repeat(50));
 
+      const { tasks } = await syncTasksCache(client, { quiet: true });
+
       for (const project of projects) {
-        const taskCount = await countTasksForProject(client, project.id);
+        const taskCount = countTasksForProjectId(tasks, project.id);
         const colorIndicator = colorizeProjectColor(project.color);
         const taskText = taskCount === 1 ? "task" : "tasks";
         console.log(

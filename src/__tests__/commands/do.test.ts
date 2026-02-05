@@ -23,9 +23,17 @@ const mockContextFile = {
 };
 
 describe("do command", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     mkdirSync(testCacheDir, { recursive: true });
     writeFileSync(testContextFile, JSON.stringify(mockContextFile));
+
+    // Prevent hitting real ~/.config/af credentials.
+    spyOn(await import("../../lib/auth/storage"), "loadCredentials").mockResolvedValue({
+      token: "test-token",
+      clientId: "test-client-id",
+      expiryTimestamp: Date.now() + 60_000,
+    });
+
     spyOn(process, "exit").mockImplementation((code?: number) => {
       throw new ExitError(code ?? 0);
     });

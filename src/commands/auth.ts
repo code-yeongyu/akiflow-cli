@@ -28,9 +28,9 @@ async function showStatus(): Promise<void> {
   console.log(`Auto-refresh: ${credentials.refreshToken ? "enabled" : "disabled"}`);
 
   if (isExpired && credentials.refreshToken) {
-    console.log("\n⚠ Token has expired. It will be automatically refreshed on next API call.");
+    console.log("\nToken has expired. It will be automatically refreshed on next API call.");
   } else if (isExpired) {
-    console.log("\n⚠ Token has expired. Run 'af auth' to re-authenticate.");
+    console.log("\nToken has expired. Run 'af auth' to re-authenticate.");
   }
 }
 
@@ -43,11 +43,13 @@ async function interactiveAuth(): Promise<void> {
   const tokens = await scanBrowsers();
 
   if (tokens.length === 0) {
-    console.log("\n❌ No Akiflow tokens found in any browser");
+    console.log("\nNo Akiflow tokens found in any browser");
     console.log("\nTo authenticate:");
     console.log("1. Log in to https://web.akiflow.com in your browser");
     console.log("2. Run 'af auth' again to extract your session token");
-    process.exit(1);
+
+    // Avoid hard-exiting (helps tests and embedding).
+    return;
   }
 
   console.log(`\nFound ${tokens.length} token(s) from:`);
@@ -62,14 +64,12 @@ async function interactiveAuth(): Promise<void> {
     const rl = createInterface({ input, output });
 
     try {
-      const answer = await rl.question(
-        "\nSelect token to use (1-" + tokens.length + "): "
-      );
+      const answer = await rl.question("\nSelect token to use (1-" + tokens.length + "): ");
       const parsed = parseInt(answer, 10);
 
       if (isNaN(parsed) || parsed < 1 || parsed > tokens.length) {
-        console.error(`❌ Invalid selection. Please enter a number between 1 and ${tokens.length}`);
-        process.exit(1);
+        console.error(`Invalid selection. Please enter a number between 1 and ${tokens.length}`);
+        return;
       }
 
       selectedIndex = parsed - 1;
@@ -79,7 +79,7 @@ async function interactiveAuth(): Promise<void> {
   }
 
   if (selectedIndex === undefined) {
-    process.exit(1);
+    return;
   }
 
   const selected = tokens[selectedIndex]!;
@@ -91,9 +91,9 @@ async function interactiveAuth(): Promise<void> {
   const expiryTimestamp = selected.expiresAt?.getTime();
   await saveCredentials(selected.token, undefined, expiryTimestamp, selected.refreshToken);
 
-  console.log("\n✓ Authentication successful!");
+  console.log("\nAuthentication successful!");
   if (selected.refreshToken) {
-    console.log("✓ Refresh token saved for automatic token renewal");
+    console.log("Refresh token saved for automatic token renewal");
   }
   console.log("You can now use af commands like 'af ls' and 'af add'");
 }
@@ -127,44 +127,53 @@ async function logoutAuth(): Promise<void> {
   console.log("Clearing stored credentials...");
   await clearCredentials();
 
-  console.log("✓ Logged out successfully");
+  console.log("Logged out successfully");
 }
 
+export const authStatusCommand = defineCommand({
+  meta: {
+    name: "status",
+    description: "Show current authentication status",
+  },
+  run: async () => {
+    await showStatus();
+  },
+});
+
+export const authLogoutCommand = defineCommand({
+  meta: {
+    name: "logout",
+    description: "Clear stored credentials",
+  },
+  run: async () => {
+    await logoutAuth();
+  },
+});
+
+export const authRefreshCommand = defineCommand({
+  meta: {
+    name: "refresh",
+    description: "Force refresh of authentication token",
+  },
+  run: async () => {
+    await refreshAuth();
+  },
+});
+
 /**
- * Main auth command (interactive flow)
+ * Main auth command
  */
 export const authCommand = defineCommand({
   meta: {
     name: "auth",
     description: "Manage Akiflow authentication",
   },
-  args: {
-    action: {
-      type: "positional",
-      description: "Action: status, login, logout, refresh",
-      required: false,
-    },
+  subCommands: {
+    status: authStatusCommand,
+    logout: authLogoutCommand,
+    refresh: authRefreshCommand,
   },
-  run: async ({ args }) => {
-    const action = args.action as string | undefined;
-
-    switch (action) {
-      case "status":
-        await showStatus();
-        break;
-      case "logout":
-        await logoutAuth();
-        break;
-      case "refresh":
-        await refreshAuth();
-        break;
-      case "login":
-      case undefined:
-        await interactiveAuth();
-        break;
-      default:
-        console.log("Unknown action. Use: af auth [status|login|logout|refresh]");
-        process.exit(1);
-    }
+  run: async () => {
+    await interactiveAuth();
   },
 });

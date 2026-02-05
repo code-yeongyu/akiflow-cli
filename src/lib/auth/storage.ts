@@ -10,7 +10,9 @@ export interface Credentials {
 }
 
 function getConfigPath(): string {
-  return join(homedir(), ".config", "af");
+  // Allow tests/advanced users to override config dir.
+  // Default: ~/.config/af
+  return process.env.AF_CONFIG_DIR ?? join(homedir(), ".config", "af");
 }
 
 function getCredentialsPath(): string {

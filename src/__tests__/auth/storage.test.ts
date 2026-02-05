@@ -6,11 +6,15 @@ import {
   clearCredentials,
   type Credentials,
 } from "../../lib/auth/storage";
-import { homedir } from "node:os";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const XDG_CONFIG_PATH = join(homedir(), ".config", "af");
-const CREDENTIALS_PATH = join(XDG_CONFIG_PATH, "credentials.json");
+let TEST_CONFIG_DIR: string;
+let ORIGINAL_AF_CONFIG_DIR: string | undefined;
+
+function getCredentialsPath(): string {
+  return join(TEST_CONFIG_DIR, "credentials.json");
+}
 
 const originalPlatform = process.platform;
 
@@ -30,6 +34,10 @@ function restorePlatform(): void {
 
 describe("Credentials Storage", () => {
   beforeEach(async () => {
+    ORIGINAL_AF_CONFIG_DIR = process.env.AF_CONFIG_DIR;
+    TEST_CONFIG_DIR = join(tmpdir(), `af-test-${crypto.randomUUID()}`);
+    process.env.AF_CONFIG_DIR = TEST_CONFIG_DIR;
+
     mockNonMacOS();
     await clearCredentials();
   });
@@ -37,6 +45,12 @@ describe("Credentials Storage", () => {
   afterEach(async () => {
     await clearCredentials();
     restorePlatform();
+
+    if (ORIGINAL_AF_CONFIG_DIR === undefined) {
+      delete process.env.AF_CONFIG_DIR;
+    } else {
+      process.env.AF_CONFIG_DIR = ORIGINAL_AF_CONFIG_DIR;
+    }
   });
 
   describe("saveCredentials", () => {
@@ -149,8 +163,9 @@ describe("Credentials Storage", () => {
     it("returns null when credentials file is corrupted", async () => {
       // given
       if (process.platform !== "darwin") {
-        await Bun.$`mkdir -p ${XDG_CONFIG_PATH}`;
-        await Bun.write(CREDENTIALS_PATH, "{ invalid json");
+        const credentialsPath = getCredentialsPath();
+        await Bun.$`mkdir -p ${TEST_CONFIG_DIR}`;
+        await Bun.write(credentialsPath, "{ invalid json");
       }
 
       // when

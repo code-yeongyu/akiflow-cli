@@ -103,23 +103,13 @@ export const taskEditCommand = defineCommand({
     const client = createClient();
 
     try {
-      const response = await client.getTasks({ limit: 1 });
-      if (!response.success || !response.data || response.data.length === 0) {
+      const response = await client.getTask(taskId);
+      if (!response.success || !response.data) {
         console.error("Error: Failed to fetch task");
         process.exit(1);
       }
 
-      const allTasksResponse = await client.getTasks();
-      if (!allTasksResponse.success || !allTasksResponse.data) {
-        console.error("Error: Failed to fetch tasks");
-        process.exit(1);
-      }
-
-      const task = allTasksResponse.data.find((t) => t.id === taskId);
-      if (!task) {
-        console.error(`Error: Task with ID "${taskId}" not found`);
-        process.exit(1);
-      }
+      const task = response.data;
 
       console.log(`Task: ${task.title}`);
       console.log(`ID: ${task.id}`);

@@ -9,6 +9,7 @@ import { completionCommand } from "./commands/completion";
 import { cal } from "./commands/cal";
 import { block } from "./commands/block";
 import { authCommand } from "./commands/auth";
+import { cacheCommand } from "./commands/cache";
 
 const hello = defineCommand({
   meta: {
@@ -37,6 +38,7 @@ const main = defineCommand({
     cal,
     block,
     auth: authCommand,
+    cache: cacheCommand,
   },
 });
 

@@ -1,6 +1,7 @@
 import { describe, it, expect, spyOn, beforeEach, afterEach } from "bun:test";
 import { add } from "../../commands/add";
 import * as storage from "../../lib/auth/storage";
+import * as fs from "node:fs/promises";
 
 const mockCredentials = {
   token: "test-jwt-token",
@@ -11,15 +12,20 @@ const mockCredentials = {
 describe("add command", () => {
   let fetchSpy: ReturnType<typeof spyOn>;
   let loadCredentialsSpy: ReturnType<typeof spyOn>;
+  let writeFileSpy: ReturnType<typeof spyOn>;
 
   beforeEach(() => {
     fetchSpy = spyOn(globalThis, "fetch");
     loadCredentialsSpy = spyOn(storage, "loadCredentials").mockResolvedValue(mockCredentials);
+
+    // Prevent tests from writing to the real ~/.cache/af folder.
+    writeFileSpy = spyOn(fs, "writeFile").mockResolvedValue(undefined as any);
   });
 
   afterEach(() => {
     fetchSpy.mockRestore();
     loadCredentialsSpy.mockRestore();
+    writeFileSpy.mockRestore();
   });
 
   it("creates task in inbox when no date flag provided", async () => {

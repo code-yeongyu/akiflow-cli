@@ -3,8 +3,9 @@ import { createClient } from "../lib/api/client";
 import type { Task } from "../lib/api/types";
 import * as path from "node:path";
 import * as os from "node:os";
-import { mkdir, writeFile } from "node:fs/promises";
+import * as fs from "node:fs/promises";
 import { loadPendingTasks, mergeTasks, removePendingTask } from "../lib/task-cache";
+import { syncTasksCache } from "../lib/tasks-local-cache";
 import { rrulestr } from "rrule";
 
 interface TaskContext {
@@ -141,49 +142,50 @@ function addVirtualRecurringTasksForToday(tasks: Task[]): Task[] {
 function filterTasks(tasks: Task[], options: LsOptions): Task[] {
   const today = getTodayDateString();
 
-  if (options.all) {
-    return tasks;
-  }
-
-  let filtered = tasks;
-
+  // Search mode: search across ALL tasks (ignore date/done defaults),
+  // optionally filter by project.
   if (options.search) {
-    const searchTerm = options.search.toLowerCase();
-    filtered = filtered.filter((task) => {
+    const q = options.search.toLowerCase();
+    let filtered = tasks.filter((task) => {
       const title = task.title?.toLowerCase() ?? "";
       const description = task.description?.toLowerCase() ?? "";
-      const originalMessage = (task.doc?.original_message as string | undefined)?.toLowerCase() ?? "";
-      return title.includes(searchTerm) || description.includes(searchTerm) || originalMessage.includes(searchTerm);
+      const originalMessage =
+        (task.doc?.original_message as string | undefined)?.toLowerCase() ?? "";
+
+      return title.includes(q) || description.includes(q) || originalMessage.includes(q);
     });
 
     if (options.project) {
-      const projectName = options.project;
+      const projectName = options.project.toLowerCase();
       filtered = filtered.filter((task) =>
-        task.listId?.toLowerCase().includes(projectName.toLowerCase())
+        (task.listId ?? "").toLowerCase().includes(projectName)
       );
     }
 
     return filtered;
   }
 
-  if (options.done) {
-    filtered = filtered.filter((task) => task.done);
-  } else {
-    filtered = filtered.filter((task) => !task.done);
-  }
+  let filtered = tasks;
 
-  if (options.inbox) {
-    filtered = filtered.filter((task) => !task.date);
-  } else if (!options.all && !options.done) {
-    filtered = filtered.filter(
-      (task) => task.date && task.date <= today
-    );
+  if (!options.all) {
+    if (options.done) {
+      filtered = filtered.filter((task) => task.done);
+    } else {
+      filtered = filtered.filter((task) => !task.done);
+    }
+
+    if (options.inbox) {
+      filtered = filtered.filter((task) => !task.date);
+    } else if (!options.done) {
+      // Default view: show tasks scheduled up to today
+      filtered = filtered.filter((task) => task.date && task.date <= today);
+    }
   }
 
   if (options.project) {
-    const projectName = options.project;
+    const projectName = options.project.toLowerCase();
     filtered = filtered.filter((task) =>
-      task.listId?.toLowerCase().includes(projectName.toLowerCase())
+      (task.listId ?? "").toLowerCase().includes(projectName)
     );
   }
 
@@ -280,7 +282,7 @@ async function saveTaskContext(tasks: Task[]): Promise<void> {
   const cacheDir = path.join(homeDir, ".cache", "af");
 
   try {
-    await mkdir(cacheDir, { recursive: true });
+    await fs.mkdir(cacheDir, { recursive: true });
   } catch {
     // Directory might already exist
   }
@@ -296,7 +298,7 @@ async function saveTaskContext(tasks: Task[]): Promise<void> {
     timestamp: Date.now(),
   };
 
-  await writeFile(contextFile, JSON.stringify(context, null, 2));
+  await fs.writeFile(contextFile, JSON.stringify(context, null, 2));
 }
 
 export const lsCommand = defineCommand({
@@ -349,10 +351,9 @@ export const lsCommand = defineCommand({
     const client = createClient();
 
     try {
-      // Use getAllTasks for --all flag or --search to fetch beyond 2500 limit
-      const apiTasks = (options.all || options.search)
-        ? await client.getAllTasks()
-        : (await client.getTasks()).data;
+      // Always use local full cache + incremental sync.
+      // This avoids missing newest tasks when the API returns a fixed order.
+      const { tasks: apiTasks } = await syncTasksCache(client, { quiet: true });
 
       // Load pending tasks and merge with API response
       const pendingTasks = await loadPendingTasks();

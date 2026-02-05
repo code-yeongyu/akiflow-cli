@@ -5,6 +5,13 @@ import { readFileSync } from "node:fs";
 import { createClient } from "../../lib/api/client";
 import type { UpdateTaskPayload } from "../../lib/api/types";
 import { parseDuration } from "../../lib/duration-parser";
+import {
+  parseDate,
+  getTodayDate,
+  parseTime,
+  createDateTimeUTC,
+  getLocalTimezone,
+} from "../../lib/date-parser";
 
 interface ContextFile {
   tasks: Array<{
@@ -207,12 +214,18 @@ export const taskPlanCommand = defineCommand({
     date: {
       type: "string",
       description: "Date to schedule task (YYYY-MM-DD or natural language)",
-      required: true,
+      required: false,
+    },
+    at: {
+      type: "string",
+      description: "Time for scheduling (e.g., 21:00, 14:30)",
+      required: false,
     },
   },
   run: async (context) => {
     const id = context.args.id as string;
-    const dateArg = context.args.date as string;
+    const dateArg = context.args.date as string | undefined;
+    const atArg = context.args.at as string | undefined;
     const contextFile = readContextFile();
 
     const taskId = resolveTaskId(id, contextFile);
@@ -221,22 +234,34 @@ export const taskPlanCommand = defineCommand({
       process.exit(1);
     }
 
-    let scheduledDate: Date;
-    const dateMatch = dateArg.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    let dateStr: string;
 
-    if (dateMatch) {
-      scheduledDate = new Date(dateMatch[0]);
+    if (dateArg) {
+      const dateMatch = dateArg.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (dateMatch) {
+        dateStr = dateMatch[0];
+      } else {
+        const parsedDate = parseDate(dateArg);
+        if (parsedDate) {
+          dateStr = parsedDate;
+        } else {
+          console.error(`Error: Invalid date format "${dateArg}". Use YYYY-MM-DD or natural language (e.g., "today", "tomorrow", "next friday").`);
+          process.exit(1);
+        }
+      }
+    } else if (atArg) {
+      dateStr = getTodayDate();
     } else {
-      console.error(`Error: Invalid date format. Use YYYY-MM-DD format.`);
+      console.error("Error: Either --date or --at must be specified.");
       process.exit(1);
     }
 
+    const scheduledDate = new Date(dateStr);
     if (isNaN(scheduledDate.getTime())) {
       console.error(`Error: Invalid date "${dateArg}"`);
       process.exit(1);
     }
 
-    const dateStr = formatDate(scheduledDate);
     const client = createClient();
     const timestamp = new Date().toISOString();
 
@@ -246,11 +271,26 @@ export const taskPlanCommand = defineCommand({
       global_updated_at: timestamp,
     };
 
+    if (atArg) {
+      const parsedTime = parseTime(atArg);
+      if (!parsedTime) {
+        console.error(`Error: Invalid time format "${atArg}". Use HH:MM format (e.g., "21:00", "14:30").`);
+        process.exit(1);
+      }
+
+      updatePayload.datetime = createDateTimeUTC(dateStr, parsedTime.hours, parsedTime.minutes);
+      updatePayload.datetime_tz = getLocalTimezone();
+    }
+
     try {
       const response = await client.upsertTasks([updatePayload]);
 
       if (response.success) {
-        console.log(`✓ Scheduled task "${id}" for ${dateStr}`);
+        if (atArg) {
+          console.log(`✓ Scheduled task "${id}" for ${dateStr} at ${atArg}`);
+        } else {
+          console.log(`✓ Scheduled task "${id}" for ${dateStr}`);
+        }
       } else {
         console.error("Error: Failed to schedule task");
         console.error(response.message);
